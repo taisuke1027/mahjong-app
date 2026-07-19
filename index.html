@@ -1,0 +1,3818 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>麻雀成績管理</title>
+
+<!-- PWA: Manifest（第7章14節） -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#007AFF">
+<meta name="background-color" content="#F8F9FA">
+
+<!-- PWA: ホーム画面追加・フルスクリーン起動（第7章12〜13節） -->
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="麻雀成績">
+
+<style>
+/* ============================================================
+   第10章 デザインシステム：カラーパレット・タイポグラフィ・余白
+   ============================================================ */
+:root {
+  --background: #F8F9FA;
+  --card: #FFFFFF;
+  --text: #212529;
+  --text-sub: #6C757D;
+  --border: #DEE2E6;
+  --primary: #007AFF;
+  --success: #28A745;
+  --warning: #FFC107;
+  --danger: #DC3545;
+
+  --radius-card: 12px;
+  --radius-button: 12px;
+  --gap-screen-x: 16px;
+  --gap-card: 16px;
+  --gap-card-gap: 12px;
+  --gap-item: 8px;
+  --button-height: 48px;
+  --tap-min: 44px;
+  --transition-speed: 200ms;
+}
+
+[data-theme="dark"] {
+  --background: #121212;
+  --card: #1E1E1E;
+  --text: #F2F2F2;
+  --text-sub: #A0A0A0;
+  --border: #343A40;
+  --primary: #0A84FF;
+  --success: #30D158;
+  --warning: #FFD60A;
+  --danger: #FF453A;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--background);
+  color: var(--text);
+  font-family: -apple-system, "SF Pro Text", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ---------- ヘッダー ---------- */
+.app-header {
+  height: 52px;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--gap-screen-x);
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header__title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.app-header__actions {
+  display: flex;
+  gap: var(--gap-item);
+}
+
+.icon-button {
+  width: var(--tap-min);
+  height: var(--tap-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text-sub);
+  font-size: 20px;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.icon-button:active { background: var(--background); }
+
+/* ---------- 画面コンテナ ---------- */
+.screen-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  padding: var(--gap-card) var(--gap-screen-x) 24px;
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition: opacity var(--transition-speed) ease, transform var(--transition-speed) ease;
+}
+
+.screen.is-active {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.screen__title {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 4px 0 16px;
+}
+
+/* ---------- 共通カード ---------- */
+.card {
+  background: var(--card);
+  border-radius: var(--radius-card);
+  padding: var(--gap-card);
+  margin-bottom: var(--gap-card-gap);
+  border: 1px solid var(--border);
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--text-sub);
+  padding: 48px 16px;
+  gap: 8px;
+}
+.empty-state__icon { font-size: 40px; opacity: 0.6; }
+.empty-state__title { font-size: 16px; color: var(--text); font-weight: 600; }
+.empty-state__desc { font-size: 14px; }
+
+/* ---------- ボタン ---------- */
+.btn {
+  height: var(--button-height);
+  border-radius: var(--radius-button);
+  border: none;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-secondary { background: var(--background); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn:active { filter: brightness(0.92); }
+
+/* ---------- タブバー ---------- */
+.tab-bar {
+  display: flex;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tab-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 0 6px;
+  min-height: var(--tap-min);
+  background: none;
+  border: none;
+  color: var(--text-sub);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.tab-item__icon { font-size: 20px; line-height: 1; }
+
+.tab-item.is-active {
+  color: var(--primary);
+}
+
+/* ---------- トースト ---------- */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%) translateY(12px);
+  background: var(--text);
+  color: var(--background);
+  padding: 12px 20px;
+  border-radius: var(--radius-card);
+  font-size: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease, transform 200ms ease;
+  z-index: 100;
+  max-width: 88%;
+  text-align: center;
+}
+.toast.is-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.toast.toast--success { background: var(--success); color: #fff; }
+.toast.toast--error { background: var(--danger); color: #fff; }
+
+/* ============================================================
+   Phase2: プレイヤー・ルール管理 用スタイル
+   ============================================================ */
+.toolbar-row {
+  display: flex;
+  gap: var(--gap-item);
+  margin-bottom: var(--gap-card-gap);
+}
+.search-input {
+  flex: 1;
+  height: var(--button-height);
+  border-radius: var(--radius-button);
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  padding: 0 14px;
+  font-size: 15px;
+}
+.search-input:focus { outline: none; border-color: var(--primary); }
+
+.btn-inline {
+  height: var(--button-height);
+  padding: 0 16px;
+  border-radius: var(--radius-button);
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 12px var(--gap-card);
+  margin-bottom: var(--gap-item);
+  cursor: pointer;
+}
+.list-row__icon {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  border: 2px solid var(--row-color, var(--primary));
+  background: var(--row-color, var(--border));
+}
+.list-row__main { flex: 1; min-width: 0; }
+.list-row__name { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-row__sub { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+.list-row__actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.row-icon-btn {
+  width: var(--tap-min); height: var(--tap-min);
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-sub);
+  border-radius: 8px;
+}
+.row-icon-btn:active { background: var(--background); }
+.row-icon-btn.is-favorite { color: var(--warning); }
+
+.badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--text-sub);
+  border: 1px solid var(--border);
+}
+
+/* ---------- ダイアログ ---------- */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+  z-index: 200;
+}
+/* 他のダイアログの上に重ねて開かれる「確認」系ダイアログは、常に最前面に表示する
+   （DOM上の出現順に関わらず、開いている他のダイアログより手前に来るようにする） */
+#confirm-dialog-overlay,
+#tobi-confirm-dialog-overlay,
+#tobi-select-dialog-overlay {
+  z-index: 260;
+}
+@media (min-width: 600px) {
+  .dialog-overlay { align-items: center; }
+}
+.dialog-overlay.is-open { opacity: 1; pointer-events: auto; }
+.dialog-box {
+  background: var(--card);
+  width: 100%;
+  max-width: 480px;
+  max-height: 88vh;
+  overflow-y: auto;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  padding: 20px var(--gap-screen-x) calc(20px + env(safe-area-inset-bottom));
+  transform: translateY(16px);
+  transition: transform 200ms ease;
+}
+@media (min-width: 600px) {
+  .dialog-box { border-radius: var(--radius-card); transform: translateY(0); }
+}
+.dialog-overlay.is-open .dialog-box { transform: translateY(0); }
+.dialog-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+.dialog-body label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-sub);
+  margin: 14px 0 6px;
+}
+.dialog-body input[type="text"],
+.dialog-body input[type="number"],
+.dialog-body textarea {
+  width: 100%;
+  height: var(--button-height);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--text);
+  padding: 0 12px;
+  font-size: 15px;
+}
+.dialog-body textarea { height: 72px; padding: 10px 12px; resize: none; }
+.checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text); }
+.checkbox-row input { width: 18px; height: 18px; }
+.dialog-actions { display: flex; gap: 10px; margin-top: 20px; }
+.dialog-actions .btn { margin: 0; }
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+.color-choice {
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: var(--background);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+}
+.color-choice.is-selected {
+  border-color: var(--primary);
+}
+.color-choice { border: 2px solid var(--border); }
+.color-choice.is-selected { border-color: var(--text); }
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.segmented-btn {
+  flex: 1;
+  height: 40px;
+  border: none;
+  background: var(--background);
+  color: var(--text-sub);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.segmented-btn.is-selected {
+  background: var(--primary);
+  color: #fff;
+}
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.section-header-title { font-size: 15px; font-weight: 700; }
+
+/* ============================================================
+   Phase3: 対局記録 用スタイル
+   ============================================================ */
+.player-select-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 4px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.player-select-row:last-child { border-bottom: none; }
+.player-select-row input[type="checkbox"] { width: 20px; height: 20px; flex-shrink: 0; }
+.player-select-row__icon {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; border: 2px solid var(--row-color, var(--border));
+  flex-shrink: 0;
+  background: var(--row-color, var(--border));
+}
+.player-select-row__name { flex: 1; font-size: 15px; }
+
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 2px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+}
+.chip-btn.is-selected { border-color: var(--primary); background: var(--primary); color: #fff; }
+
+.count-label { font-size: 13px; color: var(--text-sub); margin-top: 4px; }
+.count-label.is-ok { color: var(--success); }
+
+/* ---------- 記録画面 ---------- */
+.record-header-card {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--gap-card-gap);
+}
+.record-header-card__info { font-size: 14px; color: var(--text-sub); }
+.record-header-card__title { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+
+.participant-row { display: flex; gap: 10px; margin-bottom: var(--gap-card-gap); flex-wrap: wrap; }
+.participant-chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px 6px 6px;
+  border-radius: 18px;
+  border: 2px solid var(--participant-color, var(--border));
+  font-size: 13px;
+  background: var(--card);
+}
+.game-tab-strip { display: flex; align-items: center; gap: 6px; margin-bottom: var(--gap-card-gap); flex-wrap: wrap; }
+.game-tab {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--card); color: var(--text);
+  font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.game-tab.is-active { border-color: var(--primary); background: var(--primary); color: #fff; }
+.game-tab.is-finished:not(.is-active) { background: var(--background); color: var(--text-sub); }
+.game-tab-add {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 2px dashed var(--border);
+  background: none; color: var(--text-sub);
+  font-size: 18px; cursor: pointer; flex-shrink: 0;
+}
+.game-tab-actions { display: flex; gap: 4px; margin-left: auto; }
+
+.score-row {
+  display: flex; flex-direction: column; gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.score-row:last-child { border-bottom: none; }
+.score-row__top { display: flex; align-items: center; gap: 10px; }
+.score-row__icon {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; border: 2px solid var(--row-color, var(--border));
+  flex-shrink: 0;
+  background: var(--row-color, var(--border));
+}
+.score-row__name { flex: 1; font-size: 14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wind-picker { display: flex; gap: 4px; flex-shrink: 0; }
+.wind-btn {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--text-sub);
+  font-size: 13px; font-weight: 700;
+  cursor: pointer;
+}
+.wind-btn.is-selected { background: var(--primary); border-color: var(--primary); color: #fff; }
+.wind-btn.is-disabled { opacity: 0.3; cursor: not-allowed; }
+.score-row__input {
+  flex: 1;
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--text);
+  text-align: center;
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+.score-row__input:focus { outline: none; border-color: var(--primary); }
+
+.total-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px var(--gap-card);
+  border-radius: var(--radius-card);
+  background: var(--background);
+  border: 1px solid var(--border);
+  font-size: 14px;
+  margin: var(--gap-card-gap) 0;
+}
+.total-banner.is-ok { border-color: var(--success); color: var(--success); }
+.total-banner.is-error { border-color: var(--danger); color: var(--danger); }
+
+.error-list { font-size: 13px; color: var(--danger); margin: 8px 0 0; padding-left: 18px; }
+
+.undo-banner {
+  position: fixed;
+  left: 50%; bottom: 84px;
+  transform: translateX(-50%) translateY(0);
+  background: var(--text);
+  color: var(--background);
+  padding: 10px 12px 10px 16px;
+  border-radius: var(--radius-card);
+  display: flex; align-items: center; gap: 14px;
+  font-size: 14px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 200ms ease;
+  z-index: 150;
+}
+.undo-banner.is-visible { opacity: 1; pointer-events: auto; }
+.undo-banner__btn { background: none; border: none; color: var(--primary); font-weight: 700; font-size: 14px; cursor: pointer; }
+
+.result-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.result-row:last-child { border-bottom: none; }
+.result-row__rank {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  background: var(--background); color: var(--text-sub);
+  flex-shrink: 0;
+}
+.result-row__rank.is-first { background: var(--warning); color: #fff; }
+.result-row__icon {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; border: 2px solid var(--row-color, var(--border));
+  flex-shrink: 0;
+  background: var(--row-color, var(--border));
+}
+.result-row__name { flex: 1; font-size: 14px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.result-row__breakdown { font-size: 11px; color: var(--text-sub); }
+.result-row__total { font-size: 17px; font-weight: 700; min-width: 56px; text-align: right; }
+.result-row__total.is-plus { color: var(--primary); }
+.result-row__total.is-minus { color: var(--danger); }
+
+.ranking-row {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 12px var(--gap-card);
+  margin-bottom: var(--gap-item);
+  cursor: pointer;
+}
+.ranking-row__rank {
+  width: 30px; height: 30px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700;
+  background: var(--background); color: var(--text-sub);
+  flex-shrink: 0;
+}
+.ranking-row__rank.is-first { background: var(--warning); color: #fff; }
+.ranking-row__icon {
+  width: 34px; height: 34px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; border: 2px solid var(--row-color, var(--border));
+  flex-shrink: 0;
+  background: var(--row-color, var(--border));
+}
+.ranking-row__main { flex: 1; min-width: 0; }
+.ranking-row__name { font-size: 15px; font-weight: 600; }
+.ranking-row__sub { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+.ranking-row__total { font-size: 17px; font-weight: 700; }
+.ranking-row__total.is-plus { color: var(--primary); }
+.ranking-row__total.is-minus { color: var(--danger); }
+
+.section-label {
+  font-size: 13px; font-weight: 700; color: var(--text-sub);
+  margin: 18px 0 8px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.stat-cell {
+  background: var(--background);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.stat-cell__label { font-size: 11px; color: var(--text-sub); }
+.stat-cell__value { font-size: 18px; font-weight: 700; margin-top: 2px; }
+
+.mini-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.mini-row:last-child { border-bottom: none; }
+.mini-row__label { flex: 1; color: var(--text-sub); }
+.mini-row__value { font-weight: 700; }
+.mini-row__value.is-plus { color: var(--primary); }
+.mini-row__value.is-minus { color: var(--danger); }
+
+.history-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 12px var(--gap-card);
+  margin-bottom: var(--gap-item);
+  cursor: pointer;
+}
+.history-row__main { flex: 1; min-width: 0; }
+.history-row__title { font-size: 15px; font-weight: 600; }
+.history-row__sub { font-size: 12px; color: var(--text-sub); margin-top: 2px; }
+
+.session-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.session-table th, .session-table td {
+  padding: 8px 6px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.session-table th { color: var(--text-sub); font-weight: 600; font-size: 12px; }
+.session-table td:first-child, .session-table th:first-child { text-align: left; color: var(--text-sub); }
+.session-table tr.is-total-row td { font-weight: 700; border-top: 2px solid var(--border); border-bottom: none; }
+.session-table .is-plus { color: var(--primary); }
+.session-table .is-minus { color: var(--danger); }
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+  z-index: 300;
+}
+.loading-overlay.is-visible { opacity: 1; pointer-events: auto; }
+.loading-spinner {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  border: 4px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  animation: spin 800ms linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* レスポンシブ：タブレット以上は中央寄せ */
+@media (min-width: 600px) {
+  body { align-items: center; }
+  .app-shell {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    box-shadow: 0 0 0 1px var(--border);
+    min-height: 100vh;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app-shell" style="display:flex; flex-direction:column; flex:1;">
+
+  <header class="app-header">
+    <div class="app-header__title" id="header-title">麻雀成績管理</div>
+    <div class="app-header__actions">
+      <button class="icon-button" id="theme-toggle" title="ダークモード切替" aria-label="ダークモード切替">🌙</button>
+    </div>
+  </header>
+
+  <div class="screen-container">
+    <section class="screen" data-screen="home">
+      <div class="screen__title">ホーム</div>
+      <div class="card">
+        <button class="btn btn-primary" id="home-start-btn">記録開始</button>
+      </div>
+      <div id="home-recent-container"></div>
+      <div id="home-ranking-container"></div>
+    </section>
+
+    <section class="screen" data-screen="record">
+      <div class="screen__title">記録</div>
+      <div id="record-screen-content"></div>
+    </section>
+
+    <section class="screen" data-screen="history">
+      <div class="screen__title">履歴</div>
+      <div class="toolbar-row">
+        <input type="search" id="history-search" class="search-input" placeholder="日付・プレイヤーで検索">
+      </div>
+      <div class="segmented" id="history-sort-segmented" style="margin-bottom: var(--gap-card-gap);">
+        <button type="button" class="segmented-btn" data-sort="newest">新しい順</button>
+        <button type="button" class="segmented-btn" data-sort="oldest">古い順</button>
+        <button type="button" class="segmented-btn" data-sort="points">ポイント順</button>
+      </div>
+      <div id="history-list"></div>
+    </section>
+
+    <section class="screen" data-screen="stats">
+      <div class="screen__title">成績</div>
+      <div class="segmented" id="stats-period-segmented" style="margin-bottom: var(--gap-card-gap);">
+        <button type="button" class="segmented-btn" data-period="today">今日</button>
+        <button type="button" class="segmented-btn" data-period="month">今月</button>
+        <button type="button" class="segmented-btn" data-period="all">累計</button>
+      </div>
+      <div id="stats-ranking-container"></div>
+    </section>
+
+    <section class="screen" data-screen="players">
+      <div class="screen__title">プレイヤー</div>
+      <div class="toolbar-row">
+        <input type="search" id="player-search" class="search-input" placeholder="プレイヤーを検索">
+        <button class="btn-inline" id="player-add-btn">＋ 追加</button>
+      </div>
+      <div id="player-list"></div>
+    </section>
+
+    <section class="screen" data-screen="settings">
+      <div class="screen__title">設定</div>
+
+      <div class="card">
+        <div class="section-header-row">
+          <span class="section-header-title">ルール管理</span>
+          <button class="btn-inline" id="rule-add-btn">＋ 追加</button>
+        </div>
+        <div id="rule-list"></div>
+      </div>
+
+      <div class="card" style="display:flex; align-items:center; justify-content:space-between;">
+        <span>ダークモード</span>
+        <label style="position:relative; display:inline-block; width:48px; height:28px;">
+          <input type="checkbox" id="dark-mode-switch" style="opacity:0; width:0; height:0;">
+          <span id="switch-track" style="position:absolute; inset:0; background:var(--border); border-radius:14px; transition:background 150ms;"></span>
+          <span id="switch-thumb" style="position:absolute; top:2px; left:2px; width:24px; height:24px; background:#fff; border-radius:50%; transition:transform 150ms; box-shadow:0 1px 3px rgba(0,0,0,0.3);"></span>
+        </label>
+      </div>
+
+      <div class="card">
+        <div class="section-header-row">
+          <span class="section-header-title">データ管理</span>
+        </div>
+        <div id="backup-status-label" style="font-size:12px; color:var(--text-sub); margin-bottom:12px;"></div>
+        <button class="btn btn-secondary" id="csv-export-btn" style="margin-bottom:8px;">CSV出力</button>
+        <button class="btn btn-secondary" id="csv-import-btn" style="margin-bottom:8px;">CSV読込</button>
+        <button class="btn btn-secondary" id="json-export-btn" style="margin-bottom:8px;">JSONバックアップ</button>
+        <button class="btn btn-secondary" id="json-import-btn" style="margin-bottom:8px;">JSON復元</button>
+        <button class="btn btn-danger" id="data-delete-btn">全データを削除</button>
+        <input type="file" id="csv-import-input" accept=".csv" multiple style="display:none;">
+        <input type="file" id="json-import-input" accept=".json,application/json" style="display:none;">
+      </div>
+
+      <div class="card" style="color:var(--text-sub); font-size:14px;">
+        アプリバージョン: <span id="app-version-label"></span>
+      </div>
+    </section>
+  </div>
+
+  <nav class="tab-bar">
+    <button class="tab-item" data-tab="home"><span class="tab-item__icon">🏠</span>ホーム</button>
+    <button class="tab-item" data-tab="record"><span class="tab-item__icon">✏️</span>記録</button>
+    <button class="tab-item" data-tab="history"><span class="tab-item__icon">📜</span>履歴</button>
+    <button class="tab-item" data-tab="stats"><span class="tab-item__icon">📊</span>成績</button>
+    <button class="tab-item" data-tab="players"><span class="tab-item__icon">👤</span>プレイヤー</button>
+    <button class="tab-item" data-tab="settings"><span class="tab-item__icon">⚙️</span>設定</button>
+  </nav>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- プレイヤー追加/編集ダイアログ -->
+<div class="dialog-overlay" id="player-dialog-overlay">
+  <div class="dialog-box">
+    <div class="dialog-title" id="player-dialog-title">プレイヤー追加</div>
+    <div class="dialog-body">
+      <label for="player-name-input">名前</label>
+      <input type="text" id="player-name-input" maxlength="20" placeholder="例：山田">
+
+      <label>カラー</label>
+      <div class="color-grid" id="player-color-grid"></div>
+
+      <label class="checkbox-row" style="margin-top:16px;">
+        <input type="checkbox" id="player-favorite-input"> お気に入りにする
+      </label>
+
+      <label for="player-memo-input">メモ</label>
+      <textarea id="player-memo-input" maxlength="200" placeholder="任意"></textarea>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" id="player-dialog-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="player-dialog-save">保存</button>
+    </div>
+    <button class="btn btn-danger" id="player-dialog-delete" style="margin-top:10px; display:none;">このプレイヤーを削除</button>
+  </div>
+</div>
+
+<!-- ルール追加/編集ダイアログ -->
+<div class="dialog-overlay" id="rule-dialog-overlay">
+  <div class="dialog-box">
+    <div class="dialog-title" id="rule-dialog-title">ルール追加</div>
+    <div class="dialog-body">
+      <label for="rule-name-input">ルール名</label>
+      <input type="text" id="rule-name-input" maxlength="20" placeholder="例：仲間内">
+
+      <label>種別</label>
+      <div class="segmented" id="rule-gametype-segmented">
+        <button type="button" class="segmented-btn" data-value="yonma">四人麻雀</button>
+        <button type="button" class="segmented-btn" data-value="sanma">三人麻雀</button>
+      </div>
+
+      <label for="rule-start-point">配給原点</label>
+      <input type="number" id="rule-start-point" step="100">
+
+      <label for="rule-return-point">返し点</label>
+      <input type="number" id="rule-return-point" step="100">
+
+      <label for="rule-uma-input">ウマ（1位から順にカンマ区切り）</label>
+      <input type="text" id="rule-uma-input" placeholder="例：10,5,-5,-10">
+
+      <label class="checkbox-row" style="margin-top:16px;">
+        <input type="checkbox" id="rule-tobi-enabled"> 飛び賞を有効にする
+      </label>
+      <label for="rule-tobi-point">飛び賞ポイント</label>
+      <input type="number" id="rule-tobi-point" step="1">
+
+      <label class="checkbox-row" style="margin-top:16px;">
+        <input type="checkbox" id="rule-allow-negative"> 箱下あり
+      </label>
+      <label class="checkbox-row">
+        <input type="checkbox" id="rule-allow-west"> 西入あり
+      </label>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" id="rule-dialog-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="rule-dialog-save">保存</button>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="btn btn-secondary" id="rule-dialog-copy" style="display:none;">複製</button>
+      <button class="btn btn-danger" id="rule-dialog-delete" style="display:none;">削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 汎用確認ダイアログ -->
+<div class="dialog-overlay" id="confirm-dialog-overlay">
+  <div class="dialog-box">
+    <div class="dialog-title" id="confirm-dialog-title">確認</div>
+    <div class="dialog-body">
+      <p id="confirm-dialog-message" style="color:var(--text-sub); font-size:14px; margin:0;"></p>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" id="confirm-dialog-cancel">キャンセル</button>
+      <button class="btn btn-danger" id="confirm-dialog-ok">削除</button>
+    </div>
+  </div>
+</div>
+
+<div class="undo-banner" id="undo-banner">
+  <span id="undo-banner-message"></span>
+  <button class="undo-banner__btn" id="undo-banner-btn">元に戻す</button>
+</div>
+
+<!-- 対局開始ダイアログ -->
+<div class="dialog-overlay" id="session-start-dialog-overlay">
+  <div class="dialog-box">
+    <div class="dialog-title">対局開始</div>
+    <div class="dialog-body">
+      <label>麻雀種別</label>
+      <div class="segmented" id="session-gametype-segmented">
+        <button type="button" class="segmented-btn" data-value="yonma">四人麻雀</button>
+        <button type="button" class="segmented-btn" data-value="sanma">三人麻雀</button>
+      </div>
+
+      <label>ルール</label>
+      <div id="session-rule-list"></div>
+
+      <label>プレイヤー <span class="count-label" id="session-player-count-label"></span></label>
+      <div id="session-player-list" style="max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:10px; padding:0 10px;"></div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" id="session-start-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="session-start-btn" disabled>対局開始</button>
+    </div>
+  </div>
+</div>
+
+<!-- 復元確認ダイアログ -->
+<div class="dialog-overlay" id="restore-dialog-overlay">
+  <div class="dialog-box">
+    <div class="dialog-title">途中の記録があります</div>
+    <div class="dialog-body">
+      <p style="color:var(--text-sub); font-size:14px; margin:0;">前回終了時の対局記録が残っています。復元しますか？</p>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" id="restore-dialog-discard">新規にする</button>
+      <button class="btn btn-primary" id="restore-dialog-resume">復元する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 飛び終了確認ダイアログ -->
+<div class="dialog-overlay" id="tobi-confirm-dialog-overlay">
+  <div class="dialog-box">
+    <div class="dialog-title">飛び終了ですか？</div>
+    <div class="dialog-body">
+      <p style="color:var(--text-sub); font-size:14px; margin:0;">マイナスの持ち点があります。飛びによる終了として飛び賞を反映しますか？</p>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" id="tobi-confirm-no">いいえ</button>
+      <button class="btn btn-primary" id="tobi-confirm-yes">はい</button>
+    </div>
+  </div>
+</div>
+
+<!-- 飛び賞設定ダイアログ -->
+<div class="dialog-overlay" id="tobi-select-dialog-overlay">
+  <div class="dialog-box">
+    <div class="dialog-title">飛び賞の設定</div>
+    <div class="dialog-body">
+      <label>飛んだプレイヤー</label>
+      <div class="chip-row" id="tobi-busted-row"></div>
+      <label>飛ばしたプレイヤー</label>
+      <div class="chip-row" id="tobi-buster-row"></div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" id="tobi-select-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="tobi-select-confirm" disabled>反映する</button>
+    </div>
+  </div>
+</div>
+
+<!-- プレイヤー詳細ダイアログ -->
+<div class="dialog-overlay" id="player-detail-dialog-overlay">
+  <div class="dialog-box">
+    <div class="dialog-title" id="player-detail-title">プレイヤー詳細</div>
+    <div class="dialog-body" id="player-detail-body"></div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" id="player-detail-close">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- 履歴詳細ダイアログ -->
+<div class="dialog-overlay" id="session-detail-dialog-overlay">
+  <div class="dialog-box">
+    <div class="dialog-title" id="session-detail-title">対局詳細</div>
+    <div class="dialog-body" id="session-detail-body"></div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" id="session-detail-close">閉じる</button>
+      <button class="btn btn-primary" id="session-detail-edit">編集</button>
+    </div>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="btn btn-secondary" id="session-detail-share">共有</button>
+      <button class="btn btn-danger" id="session-detail-delete">削除</button>
+    </div>
+  </div>
+</div>
+
+<!-- 共有画像プレビューダイアログ -->
+<div class="dialog-overlay" id="share-preview-dialog-overlay">
+  <div class="dialog-box">
+    <div class="dialog-title">共有画像プレビュー</div>
+    <div class="dialog-body">
+      <div style="border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--background);">
+        <img id="share-preview-image" style="width:100%; height:auto; display:block;" alt="共有画像プレビュー">
+      </div>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn btn-secondary" id="share-preview-cancel">キャンセル</button>
+      <button class="btn btn-primary" id="share-preview-share">LINE共有</button>
+    </div>
+    <button class="btn btn-secondary" id="share-preview-save" style="margin-top:10px;">画像を保存</button>
+  </div>
+</div>
+
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-spinner"></div>
+</div>
+
+<script>
+/* ============================================================
+   第8章 アーキテクチャ方針に基づくモジュール分離
+   （Phase1時点では単一ファイル内だが、名前空間で責務を分離）
+   ============================================================ */
+
+/* ---------- Utility：共通関数 ---------- */
+const Utility = (() => {
+  function generateUUID() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, c => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+  function nowISO() {
+    return new Date().toISOString();
+  }
+  function formatDateForFilename(date = new Date()) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}${m}${d}`;
+  }
+  /* CSVの1セルをエスケープする（カンマ・改行・ダブルクォートを含む場合は"..."で囲む） */
+  function csvEscapeCell(value) {
+    const str = value === null || value === undefined ? "" : String(value);
+    if (/[",\n\r]/.test(str)) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  }
+  function arrayToCsv(headers, rows) {
+    const lines = [headers.map(csvEscapeCell).join(",")];
+    rows.forEach(row => lines.push(row.map(csvEscapeCell).join(",")));
+    return lines.join("\r\n");
+  }
+  /* シンプルなCSVパーサー（ダブルクォート囲み・エスケープに対応） */
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let cell = "";
+    let inQuotes = false;
+    const src = text.replace(/^\uFEFF/, ""); // BOM除去
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      if (inQuotes) {
+        if (ch === '"') {
+          if (src[i + 1] === '"') { cell += '"'; i++; }
+          else { inQuotes = false; }
+        } else {
+          cell += ch;
+        }
+      } else {
+        if (ch === '"') inQuotes = true;
+        else if (ch === ",") { row.push(cell); cell = ""; }
+        else if (ch === "\r") { /* skip */ }
+        else if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+        else cell += ch;
+      }
+    }
+    if (cell !== "" || row.length > 0) { row.push(cell); rows.push(row); }
+    return rows.filter(r => !(r.length === 1 && r[0] === ""));
+  }
+  /* UTF-8 BOM付きBlobとしてファイルをダウンロードする */
+  function downloadTextFile(filename, text, mimeType = "text/csv;charset=utf-8;") {
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + text], { type: mimeType });
+    downloadBlob(filename, blob);
+  }
+  function downloadJsonFile(filename, obj) {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: "application/json" });
+    downloadBlob(filename, blob);
+  }
+  function downloadBlob(filename, blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+  return {
+    generateUUID, nowISO, formatDateForFilename,
+    csvEscapeCell, arrayToCsv, parseCsv,
+    downloadTextFile, downloadJsonFile, downloadBlob
+  };
+})();
+
+/* ---------- データモデル（第3章 データ構造設計書 準拠） ---------- */
+const Models = {
+  createPlayer({ name, color = "#007AFF" } = {}) {
+    return {
+      id: Utility.generateUUID(),
+      name: name ?? "",
+      color,
+      favorite: false,
+      memo: "",
+      createdAt: Utility.nowISO(),
+      updatedAt: Utility.nowISO(),
+      deleted: false
+    };
+  },
+  createRulePreset({ name, gameType = "yonma" } = {}) {
+    const isYonma = gameType === "yonma";
+    return {
+      id: Utility.generateUUID(),
+      name: name ?? (isYonma ? "四麻ルール" : "三麻ルール"),
+      gameType, // "yonma" | "sanma"
+      startPoint: isYonma ? 25000 : 35000,
+      returnPoint: isYonma ? 30000 : 40000,
+      uma: isYonma ? [10, 5, -5, -10] : [10, 0, -10],
+      tobiPoint: 10,
+      tobiEnabled: true,
+      allowNegative: true, // 箱下あり
+      allowWestRound: true,
+      pointRounding: "goshaRokuNyu", // 五捨六入
+      createdAt: Utility.nowISO()
+    };
+  },
+  createSession({ ruleId, playerIds = [] } = {}) {
+    return {
+      id: Utility.generateUUID(),
+      date: Utility.nowISO(),
+      title: "",
+      ruleId: ruleId ?? null,
+      playerIds,
+      createdAt: Utility.nowISO(),
+      updatedAt: Utility.nowISO(),
+      deleted: false
+    };
+  },
+  createGame({ sessionId, gameNumber } = {}) {
+    return {
+      id: Utility.generateUUID(),
+      sessionId: sessionId ?? null,
+      gameNumber: gameNumber ?? 1,
+      startTime: Utility.nowISO(),
+      endTime: null,
+      seatWinds: {}, // playerId -> "east" | "south" | "west" | "north"（半荘ごとに設定）
+      isFinished: false,
+      isWestRound: false,
+      tobi: null, // { bustedPlayerId, busterPlayerId } | null
+      memo: "",
+      results: [] // GameResult[]
+    };
+  },
+  createGameResult({ playerId, playerNameSnapshot } = {}) {
+    return {
+      playerId: playerId ?? null,
+      playerNameSnapshot: playerNameSnapshot ?? "",
+      rank: null,
+      finalPoint: null,
+      scorePoint: null,
+      umaPoint: null,
+      okaPoint: null,
+      tobiPoint: 0,
+      totalPoint: null
+    };
+  },
+  createDefaultSettings() {
+    return {
+      theme: "light", // "light" | "dark"
+      themeMode: "manual", // "manual" | "system"
+      tenkeyEnabled: true,
+      initialScreen: "home",
+      lastBackupAt: null,
+      currentSessionId: null,
+      schemaVersion: "1.0.0"
+    };
+  }
+};
+
+/* ---------- Storage：LocalStorageアクセスの一元管理 ---------- */
+const Storage = (() => {
+  const KEYS = {
+    players: "mahjong.players",
+    rules: "mahjong.rules",
+    sessions: "mahjong.sessions",
+    games: "mahjong.games",
+    settings: "mahjong.settings",
+    version: "mahjong.version"
+  };
+
+  const APP_VERSION = "1.0.0";
+  const SCHEMA_VERSION = "1.0.0";
+  let errorHandler = null; // Controllerが登録する、保存失敗をユーザーに知らせるためのコールバック
+
+  function setErrorHandler(fn) {
+    errorHandler = fn;
+  }
+
+  function get(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.error("[Storage] 読込エラー:", key, e);
+      return null;
+    }
+  }
+
+  function set(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (e) {
+      console.error("[Storage] 保存エラー:", key, e);
+      const isQuotaError = e && (e.name === "QuotaExceededError" || e.code === 22);
+      if (errorHandler) {
+        errorHandler(isQuotaError ? "保存容量の上限に達しました。不要な対局履歴を削除するかバックアップ後にデータ削除をご検討ください。" : "データの保存に失敗しました。");
+      }
+      return false;
+    }
+  }
+
+  /* 初期化：キーが存在しない場合のみデフォルト値を書き込む */
+  function initializeIfNeeded() {
+    if (get(KEYS.players) === null) set(KEYS.players, []);
+    if (get(KEYS.rules) === null) {
+      set(KEYS.rules, [
+        Models.createRulePreset({ name: "仲間内（四麻）", gameType: "yonma" }),
+        Models.createRulePreset({ name: "三麻標準", gameType: "sanma" })
+      ]);
+    }
+    if (get(KEYS.sessions) === null) set(KEYS.sessions, []);
+    if (get(KEYS.games) === null) set(KEYS.games, []);
+    if (get(KEYS.settings) === null) set(KEYS.settings, Models.createDefaultSettings());
+    if (get(KEYS.version) === null) {
+      set(KEYS.version, { appVersion: APP_VERSION, schemaVersion: SCHEMA_VERSION });
+    }
+  }
+
+  return {
+    KEYS,
+    APP_VERSION,
+    SCHEMA_VERSION,
+    get,
+    set,
+    setErrorHandler,
+    initializeIfNeeded,
+    getPlayers: () => get(KEYS.players) ?? [],
+    getRules: () => get(KEYS.rules) ?? [],
+    getSessions: () => get(KEYS.sessions) ?? [],
+    getGames: () => get(KEYS.games) ?? [],
+    getSettings: () => get(KEYS.settings) ?? Models.createDefaultSettings(),
+    setSettings: (settings) => set(KEYS.settings, settings)
+  };
+})();
+
+/* ---------- UI：画面表示・テーマ・タブ切替のみを担当 ---------- */
+const UI = (() => {
+  let toastTimer = null;
+
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
+    const toggleBtn = document.getElementById("theme-toggle");
+    if (toggleBtn) toggleBtn.textContent = theme === "dark" ? "☀️" : "🌙";
+    const switchInput = document.getElementById("dark-mode-switch");
+    const track = document.getElementById("switch-track");
+    const thumb = document.getElementById("switch-thumb");
+    if (switchInput) switchInput.checked = theme === "dark";
+    if (track) track.style.background = theme === "dark" ? "var(--primary)" : "var(--border)";
+    if (thumb) thumb.style.transform = theme === "dark" ? "translateX(20px)" : "translateX(0)";
+  }
+
+  function showScreen(tabName) {
+    document.querySelectorAll(".screen").forEach(el => {
+      el.classList.toggle("is-active", el.dataset.screen === tabName);
+    });
+    document.querySelectorAll(".tab-item").forEach(el => {
+      el.classList.toggle("is-active", el.dataset.tab === tabName);
+    });
+  }
+
+  function showToast(message, type = "default") {
+    const toast = document.getElementById("toast");
+    if (!toast) return;
+    toast.textContent = message;
+    toast.className = "toast is-visible" + (type === "success" ? " toast--success" : type === "error" ? " toast--error" : "");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove("is-visible");
+    }, 3000);
+  }
+
+  function setVersionLabel() {
+    const el = document.getElementById("app-version-label");
+    if (el) el.textContent = Storage.APP_VERSION;
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, ch => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[ch]));
+  }
+
+  /* プレイヤーアイコンの代わりに使う、インライン表示用のカラースウォッチ（丸ドット） */
+  function colorDot(color) {
+    return `<span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${color}; margin-right:4px; vertical-align:middle;"></span>`;
+  }
+
+  function renderPlayerList(filterText = "") {
+    const container = document.getElementById("player-list");
+    if (!container) return;
+    const keyword = filterText.trim().toLowerCase();
+    const all = PlayerManager.getAllActive();
+    const filtered = keyword
+      ? all.filter(p => p.name.toLowerCase().includes(keyword))
+      : all;
+    // お気に入りを上部表示
+    filtered.sort((a, b) => (b.favorite - a.favorite));
+
+    if (filtered.length === 0) {
+      container.innerHTML = all.length === 0
+        ? `<div class="empty-state">
+             <div class="empty-state__icon">👤</div>
+             <div class="empty-state__title">プレイヤーが登録されていません</div>
+             <div class="empty-state__desc">＋ボタンから追加できます</div>
+           </div>`
+        : `<div class="empty-state">
+             <div class="empty-state__icon">🔍</div>
+             <div class="empty-state__title">該当するプレイヤーがいません</div>
+           </div>`;
+      return;
+    }
+
+    container.innerHTML = filtered.map(p => `
+      <div class="list-row" data-player-id="${p.id}" style="--row-color:${p.color}">
+        <div class="list-row__icon"></div>
+        <div class="list-row__main">
+          <div class="list-row__name">${escapeHtml(p.name)}</div>
+          ${p.memo ? `<div class="list-row__sub">${escapeHtml(p.memo)}</div>` : ""}
+        </div>
+        <div class="list-row__actions">
+          <button class="row-icon-btn favorite-toggle-btn ${p.favorite ? "is-favorite" : ""}" data-player-id="${p.id}" aria-label="お気に入り切替">${p.favorite ? "★" : "☆"}</button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  function renderRuleList() {
+    const container = document.getElementById("rule-list");
+    if (!container) return;
+    const rules = RuleManager.getAll();
+    if (rules.length === 0) {
+      container.innerHTML = `<div class="empty-state">
+        <div class="empty-state__icon">📋</div>
+        <div class="empty-state__title">ルールが登録されていません</div>
+      </div>`;
+      return;
+    }
+    container.innerHTML = rules.map(r => `
+      <div class="list-row" data-rule-id="${r.id}">
+        <div class="list-row__main">
+          <div class="list-row__name">${escapeHtml(r.name)}</div>
+          <div class="list-row__sub">配給${r.startPoint} / 返し${r.returnPoint}</div>
+        </div>
+        <span class="badge">${r.gameType === "yonma" ? "四麻" : "三麻"}</span>
+      </div>
+    `).join("");
+  }
+
+  function showLoading() {
+    const el = document.getElementById("loading-overlay");
+    if (el) el.classList.add("is-visible");
+  }
+  function hideLoading() {
+    const el = document.getElementById("loading-overlay");
+    if (el) el.classList.remove("is-visible");
+  }
+
+  return { applyTheme, showScreen, showToast, setVersionLabel, renderPlayerList, renderRuleList, escapeHtml, showLoading, hideLoading, colorDot };
+})();
+
+/* ---------- 定数：カラー候補（第10章 準拠） ---------- */
+const PLAYER_COLOR_CHOICES = [
+  { name: "青",       value: "#4A90D9" },
+  { name: "赤",       value: "#E74C3C" },
+  { name: "緑",       value: "#2ECC71" },
+  { name: "黄",       value: "#F1C40F" },
+  { name: "紫",       value: "#9B59B6" },
+  { name: "オレンジ", value: "#E67E22" },
+  { name: "ピンク",   value: "#FF69B4" },
+  { name: "水色",     value: "#17A2B8" },
+  { name: "茶色",     value: "#8B5E3C" },
+  { name: "グレー",   value: "#6C757D" }
+];
+const MAX_PLAYER_COUNT = 50;
+
+/* ---------- Dialog：汎用ダイアログ開閉 ---------- */
+const Dialog = (() => {
+  function open(id) {
+    document.getElementById(id).classList.add("is-open");
+  }
+  function close(id) {
+    document.getElementById(id).classList.remove("is-open");
+  }
+  let pendingConfirmAction = null;
+  function confirm(title, message, onConfirm, options = {}) {
+    const { confirmLabel = "削除", danger = true } = options;
+    document.getElementById("confirm-dialog-title").textContent = title;
+    document.getElementById("confirm-dialog-message").textContent = message;
+    const okBtn = document.getElementById("confirm-dialog-ok");
+    okBtn.textContent = confirmLabel;
+    okBtn.classList.toggle("btn-danger", danger);
+    okBtn.classList.toggle("btn-primary", !danger);
+    pendingConfirmAction = onConfirm;
+    open("confirm-dialog-overlay");
+  }
+  function runPendingConfirm() {
+    if (typeof pendingConfirmAction === "function") pendingConfirmAction();
+    pendingConfirmAction = null;
+    close("confirm-dialog-overlay");
+  }
+  return { open, close, confirm, runPendingConfirm };
+})();
+
+/* ---------- PlayerManager：プレイヤーのCRUD（第3章 準拠） ---------- */
+const PlayerManager = (() => {
+  function getAllActive() {
+    return Storage.getPlayers().filter(p => !p.deleted);
+  }
+  function getById(id) {
+    return Storage.getPlayers().find(p => p.id === id) ?? null;
+  }
+  function add({ name, color, favorite, memo }) {
+    const trimmed = (name ?? "").trim();
+    if (!trimmed) return { ok: false, error: "名前を入力してください" };
+    if (getAllActive().length >= MAX_PLAYER_COUNT) {
+      return { ok: false, error: `プレイヤーは最大${MAX_PLAYER_COUNT}人までです` };
+    }
+    const players = Storage.getPlayers();
+    const player = Models.createPlayer({ name: trimmed, color });
+    player.favorite = !!favorite;
+    player.memo = memo ?? "";
+    players.push(player);
+    Storage.set(Storage.KEYS.players, players);
+    return { ok: true, player };
+  }
+  function update(id, { name, color, favorite, memo }) {
+    const trimmed = (name ?? "").trim();
+    if (!trimmed) return { ok: false, error: "名前を入力してください" };
+    const players = Storage.getPlayers();
+    const target = players.find(p => p.id === id);
+    if (!target) return { ok: false, error: "プレイヤーが見つかりません" };
+    target.name = trimmed;
+    target.color = color;
+    target.favorite = !!favorite;
+    target.memo = memo ?? "";
+    target.updatedAt = Utility.nowISO();
+    Storage.set(Storage.KEYS.players, players);
+    return { ok: true, player: target };
+  }
+  function toggleFavorite(id) {
+    const players = Storage.getPlayers();
+    const target = players.find(p => p.id === id);
+    if (!target) return;
+    target.favorite = !target.favorite;
+    target.updatedAt = Utility.nowISO();
+    Storage.set(Storage.KEYS.players, players);
+  }
+  /* 論理削除：過去の対局履歴の名前(playerNameSnapshot)は別途保持されるため失われない */
+  function softDelete(id) {
+    const players = Storage.getPlayers();
+    const target = players.find(p => p.id === id);
+    if (!target) return;
+    target.deleted = true;
+    target.updatedAt = Utility.nowISO();
+    Storage.set(Storage.KEYS.players, players);
+  }
+  return { getAllActive, getById, add, update, toggleFavorite, softDelete };
+})();
+
+/* ---------- RuleManager：ルールプリセットのCRUD（第3章 準拠） ---------- */
+const RuleManager = (() => {
+  function getAll() {
+    return Storage.getRules();
+  }
+  function getById(id) {
+    return Storage.getRules().find(r => r.id === id) ?? null;
+  }
+  function add(data) {
+    const rules = Storage.getRules();
+    const preset = Models.createRulePreset({ name: data.name, gameType: data.gameType });
+    Object.assign(preset, data);
+    rules.push(preset);
+    Storage.set(Storage.KEYS.rules, rules);
+    return { ok: true, rule: preset };
+  }
+  function update(id, data) {
+    const rules = Storage.getRules();
+    const target = rules.find(r => r.id === id);
+    if (!target) return { ok: false, error: "ルールが見つかりません" };
+    Object.assign(target, data);
+    Storage.set(Storage.KEYS.rules, rules);
+    return { ok: true, rule: target };
+  }
+  function remove(id) {
+    const rules = Storage.getRules().filter(r => r.id !== id);
+    Storage.set(Storage.KEYS.rules, rules);
+  }
+  function duplicate(id) {
+    const rules = Storage.getRules();
+    const source = rules.find(r => r.id === id);
+    if (!source) return;
+    const copy = JSON.parse(JSON.stringify(source));
+    copy.id = Utility.generateUUID();
+    copy.name = source.name + "のコピー";
+    copy.createdAt = Utility.nowISO();
+    rules.push(copy);
+    Storage.set(Storage.KEYS.rules, rules);
+  }
+  return { getAll, getById, add, update, remove, duplicate };
+})();
+
+/* ---------- SessionManager：対局セッションのCRUD（第3章 準拠） ---------- */
+const SessionManager = (() => {
+  function getAll() {
+    return Storage.getSessions();
+  }
+  function getAllActive() {
+    return Storage.getSessions().filter(s => !s.deleted);
+  }
+  function getById(id) {
+    return Storage.getSessions().find(s => s.id === id) ?? null;
+  }
+  function create({ ruleId, playerIds }) {
+    const sessions = Storage.getSessions();
+    const session = Models.createSession({ ruleId, playerIds });
+    sessions.push(session);
+    Storage.set(Storage.KEYS.sessions, sessions);
+    return session;
+  }
+  function getCurrent() {
+    const settings = Storage.getSettings();
+    if (!settings.currentSessionId) return null;
+    return getById(settings.currentSessionId);
+  }
+  function setCurrent(sessionId) {
+    const settings = Storage.getSettings();
+    settings.currentSessionId = sessionId;
+    Storage.setSettings(settings);
+  }
+  function clearCurrent() {
+    setCurrent(null);
+  }
+  /* 論理削除：履歴・成績集計からは除外されるが、データ自体は保持する */
+  function remove(id) {
+    const sessions = Storage.getSessions();
+    const target = sessions.find(s => s.id === id);
+    if (!target) return;
+    target.deleted = true;
+    target.updatedAt = Utility.nowISO();
+    Storage.set(Storage.KEYS.sessions, sessions);
+  }
+  return { getAll, getAllActive, getById, create, getCurrent, setCurrent, clearCurrent, remove };
+})();
+
+/* ---------- GameManager：半荘データのCRUD（第3章 準拠） ---------- */
+const GameManager = (() => {
+  function getBySession(sessionId) {
+    return Storage.getGames()
+      .filter(g => g.sessionId === sessionId)
+      .sort((a, b) => a.gameNumber - b.gameNumber);
+  }
+  function getById(id) {
+    return Storage.getGames().find(g => g.id === id) ?? null;
+  }
+  function addForSession(sessionId, players) {
+    const games = Storage.getGames();
+    const existing = games.filter(g => g.sessionId === sessionId);
+    const nextNumber = existing.length + 1;
+    const game = Models.createGame({ sessionId, gameNumber: nextNumber });
+    game.results = players.map(p => Models.createGameResult({ playerId: p.id, playerNameSnapshot: p.name }));
+    games.push(game);
+    Storage.set(Storage.KEYS.games, games);
+    return game;
+  }
+  function updateResult(gameId, playerId, finalPoint) {
+    const games = Storage.getGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) return;
+    const result = game.results.find(r => r.playerId === playerId);
+    if (!result) return;
+    result.finalPoint = finalPoint;
+    Storage.set(Storage.KEYS.games, games);
+  }
+  function markFinished(gameId, isFinished) {
+    const games = Storage.getGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) return;
+    game.isFinished = isFinished;
+    game.endTime = isFinished ? Utility.nowISO() : null;
+    Storage.set(Storage.KEYS.games, games);
+  }
+  /* 削除：戻り値として削除したゲームを返す（Undo用） */
+  function remove(gameId) {
+    const games = Storage.getGames();
+    const index = games.findIndex(g => g.id === gameId);
+    if (index === -1) return null;
+    const [removed] = games.splice(index, 1);
+    Storage.set(Storage.KEYS.games, games);
+    return removed;
+  }
+  function restore(game) {
+    const games = Storage.getGames();
+    games.push(game);
+    Storage.set(Storage.KEYS.games, games);
+  }
+  function duplicate(gameId) {
+    const games = Storage.getGames();
+    const source = games.find(g => g.id === gameId);
+    if (!source) return null;
+    const existing = games.filter(g => g.sessionId === source.sessionId);
+    const copy = JSON.parse(JSON.stringify(source));
+    copy.id = Utility.generateUUID();
+    copy.gameNumber = existing.length + 1;
+    copy.isFinished = false;
+    copy.startTime = Utility.nowISO();
+    copy.endTime = null;
+    copy.seatWinds = {}; // 半荘を追加するごとに風を設定するため、複製時もリセットする
+    copy.results.forEach(r => { r.finalPoint = null; });
+    games.push(copy);
+    Storage.set(Storage.KEYS.games, games);
+    return copy;
+  }
+  function setWestRound(gameId, value) {
+    const games = Storage.getGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) return;
+    game.isWestRound = !!value;
+    Storage.set(Storage.KEYS.games, games);
+  }
+  /* 風（東・南・西・北）を半荘ごとに設定する。値がnull/空文字なら未設定に戻す */
+  function setSeatWind(gameId, playerId, wind) {
+    const games = Storage.getGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) return;
+    if (!game.seatWinds) game.seatWinds = {};
+    if (wind) game.seatWinds[playerId] = wind;
+    else delete game.seatWinds[playerId];
+    Storage.set(Storage.KEYS.games, games);
+  }
+  /* Calculatorの計算結果を保存する（⑨保存 のステップ） */
+  function saveComputedResults(gameId, computedResults, { tobi = null } = {}) {
+    const games = Storage.getGames();
+    const game = games.find(g => g.id === gameId);
+    if (!game) return;
+    computedResults.forEach(cr => {
+      const result = game.results.find(r => r.playerId === cr.playerId);
+      if (!result) return;
+      result.rank = cr.rank;
+      result.finalPoint = cr.finalPoint;
+      result.scorePoint = cr.scorePoint;
+      result.umaPoint = cr.umaPoint;
+      result.okaPoint = cr.okaPoint;
+      result.tobiPoint = cr.tobiPoint;
+      result.totalPoint = cr.totalPoint;
+    });
+    game.tobi = tobi;
+    game.isFinished = true;
+    game.endTime = Utility.nowISO();
+    Storage.set(Storage.KEYS.games, games);
+  }
+  return { getBySession, getById, addForSession, updateResult, markFinished, remove, restore, duplicate, setWestRound, setSeatWind, saveComputedResults };
+})();
+
+/* ============================================================
+   Calculator：点数計算を行う唯一のモジュール（第4章 準拠、同点タイブレークは東南西北で判定）
+   UI・Storageに依存しない純粋関数として実装（第8章 テストしやすい設計）
+   ============================================================ */
+const Calculator = (() => {
+  const SEAT_WIND_PRIORITY = { east: 0, south: 1, west: 2, north: 3 };
+  const SEAT_WIND_LABELS = { east: "東", south: "南", west: "西", north: "北" };
+
+  /* 五捨六入：最終持ち点そのものを100点単位で丸め、1000点単位に揃えてから返し点との差を1ポイント=1000点で換算する（第4章 7節）
+     ※ 差額(diff)を丸めるのではなく、持ち点自体の百の位を見て丸める点に注意
+        （例：返し30000点に対し持ち点25500点 → 25500の百の位=5なので切り捨てて25000点として計算 → (25000-30000)/1000 = -5） */
+  function goshaRokuNyuToPoint(finalPoint, returnPoint) {
+    const sign = finalPoint < 0 ? -1 : 1;
+    const abs = Math.abs(finalPoint);
+    const thousands = Math.floor(abs / 1000);
+    const remainder = abs % 1000; // 0-999
+    const hundredsDigit = Math.floor(remainder / 100); // 0-9
+    const roundedThousands = hundredsDigit >= 6 ? thousands + 1 : thousands;
+    const roundedScore = sign * roundedThousands * 1000;
+    return (roundedScore - returnPoint) / 1000;
+  }
+
+  /* 順位決定：持ち点降順、同点は東＞南＞西＞北の優先順位で判定する */
+  function decideRanks(playerIds, finalPoints, seatWinds) {
+    const sorted = [...playerIds].sort((a, b) => {
+      const diff = finalPoints[b] - finalPoints[a];
+      if (diff !== 0) return diff;
+      const pa = SEAT_WIND_PRIORITY[seatWinds[a]] ?? 99;
+      const pb = SEAT_WIND_PRIORITY[seatWinds[b]] ?? 99;
+      return pa - pb;
+    });
+    const ranks = {};
+    sorted.forEach((id, index) => { ranks[id] = index + 1; });
+    return ranks;
+  }
+
+  /**
+   * 半荘の点数計算（第4章 2節の計算順序 ③〜⑧ を実施）
+   * @param {string[]} params.playerIds - 参加者ID
+   * @param {Object<string, number>} params.finalPoints - playerId -> 最終持ち点
+   * @param {Object} params.rule - RulePreset（startPoint, returnPoint, uma, tobiPoint, tobiEnabled, allowNegative）
+   * @param {Object<string, string>} params.seatWinds - playerId -> "east"|"south"|"west"|"north"（同点タイブレーク用、半荘ごとに設定）
+   * @param {?{bustedPlayerId:string, busterPlayerId:string}} params.tobi - 飛び情報（なければnull）
+   * @returns {{ok:true, results:Array}|{ok:false, error:string}}
+   */
+  function calculate({ playerIds, finalPoints, rule, seatWinds, tobi }) {
+    const playerCount = playerIds.length;
+
+    // ② 合計点チェック
+    const requiredTotal = rule.startPoint * playerCount;
+    const currentTotal = playerIds.reduce((sum, id) => sum + (finalPoints[id] ?? 0), 0);
+    if (currentTotal !== requiredTotal) {
+      return { ok: false, error: `合計点数が一致しません（現在${currentTotal}点 / 必要${requiredTotal}点）` };
+    }
+
+    // 箱下チェック（設定が「なし」の場合はマイナス点を許可しない）
+    if (!rule.allowNegative && playerIds.some(id => finalPoints[id] < 0)) {
+      return { ok: false, error: "箱下なしのため、持ち点をマイナスにはできません" };
+    }
+
+    // ③ 順位決定（同点時は東＞南＞西＞北で判定）
+    const winds = seatWinds || {};
+    const missingWind = playerIds.some(id => !winds[id]);
+    if (missingWind) {
+      return { ok: false, error: "風（東・南・西・北）を全員分設定してください" };
+    }
+    const windValues = playerIds.map(id => winds[id]);
+    if (new Set(windValues).size !== playerIds.length) {
+      return { ok: false, error: "風（東・南・西・北）が重複しています" };
+    }
+    const ranks = decideRanks(playerIds, finalPoints, winds);
+
+    // 同順位異常チェック
+    const usedRanks = new Set(Object.values(ranks));
+    if (usedRanks.size !== playerCount) {
+      return { ok: false, error: "順位の決定に失敗しました（同順位異常）" };
+    }
+
+    // 飛び賞設定チェック（飛ばした人のみ獲得。設定ミスは保存不可）
+    const tobiPoints = {};
+    playerIds.forEach(id => { tobiPoints[id] = 0; });
+    if (rule.tobiEnabled && tobi) {
+      const { bustedPlayerId, busterPlayerId } = tobi;
+      if (!bustedPlayerId || !busterPlayerId || bustedPlayerId === busterPlayerId
+          || !playerIds.includes(bustedPlayerId) || !playerIds.includes(busterPlayerId)) {
+        return { ok: false, error: "飛び賞の設定が正しくありません" };
+      }
+      if (finalPoints[bustedPlayerId] >= 0) {
+        return { ok: false, error: "飛んだプレイヤーの持ち点がマイナスではありません" };
+      }
+      tobiPoints[busterPlayerId] = rule.tobiPoint;
+      tobiPoints[bustedPlayerId] = -rule.tobiPoint;
+    }
+
+    // ④ 素点計算　⑤ オカ計算　⑥ ウマ加算　⑦ 飛び賞加算　⑧ 最終ポイント計算
+    const results = playerIds.map(id => {
+      const rank = ranks[id];
+      const finalPoint = finalPoints[id];
+      const scorePoint = goshaRokuNyuToPoint(finalPoint, rule.returnPoint);
+      const umaPoint = rule.uma[rank - 1] ?? 0;
+      const okaPoint = rank === 1 ? (rule.returnPoint - rule.startPoint) * playerCount / 1000 : 0;
+      const tobiPoint = tobiPoints[id] ?? 0;
+      const totalPoint = scorePoint + umaPoint + okaPoint + tobiPoint;
+      return { playerId: id, rank, finalPoint, scorePoint, umaPoint, okaPoint, tobiPoint, totalPoint };
+    });
+
+    return { ok: true, results };
+  }
+
+  return { calculate, goshaRokuNyuToPoint, decideRanks, SEAT_WIND_PRIORITY, SEAT_WIND_LABELS };
+})();
+
+/* ============================================================
+   Statistics：履歴から成績を集計する（第3章 8節・第8章 準拠）
+   保存はせず、呼び出しのたびに毎回生成する。UI・Storageに依存しない純粋関数。
+   ============================================================ */
+const Statistics = (() => {
+  function indexById(list) {
+    const map = {};
+    list.forEach(item => { map[item.id] = item; });
+    return map;
+  }
+
+  function isGameComplete(game) {
+    return !!game.isFinished && Array.isArray(game.results) && game.results.length > 0
+      && game.results.every(r => r.rank != null && Number.isFinite(r.totalPoint));
+  }
+
+  function isSameDay(iso, ref) {
+    const d = new Date(iso);
+    return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth() && d.getDate() === ref.getDate();
+  }
+  function isSameMonth(iso, ref) {
+    const d = new Date(iso);
+    return d.getFullYear() === ref.getFullYear() && d.getMonth() === ref.getMonth();
+  }
+
+  /* 期間フィルタ：today(今日) / month(今月) / all(累計)
+     どの期間でも、セッションが存在しない（削除済み）半荘は常に除外する */
+  function filterGamesByPeriod(games, sessionsById, period, now) {
+    return games.filter(g => {
+      const session = sessionsById[g.sessionId];
+      if (!session) return false;
+      if (period === "today") return isSameDay(session.date, now);
+      if (period === "month") return isSameMonth(session.date, now);
+      return true; // "all"
+    });
+  }
+
+  /**
+   * 1人のプレイヤーの成績を集計する
+   * @param {string} playerId
+   * @param {{games:Array, sessions:Array, period?:string, now?:Date}} data
+   */
+  function computePlayerStats(playerId, { games, sessions, period = "all", now = new Date() }) {
+    const sessionsById = indexById(sessions);
+    const finished = games.filter(isGameComplete).filter(g => g.results.some(r => r.playerId === playerId));
+    const periodGames = filterGamesByPeriod(finished, sessionsById, period, now);
+    const myResults = periodGames.map(g => g.results.find(r => r.playerId === playerId));
+    const gamesCount = myResults.length;
+
+    const yonmaGames = periodGames.filter(g => g.results.length === 4);
+    const rankCount = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    myResults.forEach(r => { rankCount[r.rank] = (rankCount[r.rank] || 0) + 1; });
+
+    const totalPoint = myResults.reduce((s, r) => s + r.totalPoint, 0);
+    const avgRank = gamesCount ? myResults.reduce((s, r) => s + r.rank, 0) / gamesCount : null;
+    // 平均素点（返し計算前）：最終持ち点そのものの平均
+    const avgRawScore = gamesCount ? myResults.reduce((s, r) => s + r.finalPoint, 0) / gamesCount : null;
+
+    return {
+      playerId,
+      gamesCount,
+      totalPoint,
+      avgRank,
+      avgRawScore,
+      rate1: gamesCount ? (rankCount[1] / gamesCount) * 100 : null,
+      rate2: gamesCount ? (rankCount[2] / gamesCount) * 100 : null,
+      rate3: gamesCount ? (rankCount[3] / gamesCount) * 100 : null,
+      rate4: yonmaGames.length
+        ? (yonmaGames.filter(g => g.results.find(r => r.playerId === playerId).rank === 4).length / yonmaGames.length) * 100
+        : null,
+      hasYonmaGames: yonmaGames.length > 0
+    };
+  }
+
+  /* 累計ランキング（第5-6章：成績画面） */
+  function computeRanking({ games, sessions, players, period = "all", now = new Date() }) {
+    return players
+      .map(p => ({ player: p, stats: computePlayerStats(p.id, { games, sessions, period, now }) }))
+      .filter(entry => entry.stats.gamesCount > 0)
+      .sort((a, b) => b.stats.totalPoint - a.stats.totalPoint);
+  }
+
+  /* 対戦相手別成績（第5-9章：プレイヤー詳細） */
+  function computeOpponentStats(playerId, { games }) {
+    const finished = games.filter(isGameComplete).filter(g => g.results.some(r => r.playerId === playerId));
+    const byOpponent = {};
+    finished.forEach(g => {
+      const mine = g.results.find(r => r.playerId === playerId);
+      g.results.forEach(r => {
+        if (r.playerId === playerId) return;
+        if (!byOpponent[r.playerId]) {
+          byOpponent[r.playerId] = {
+            opponentId: r.playerId,
+            nameSnapshot: r.playerNameSnapshot,
+            gamesTogether: 0, wins: 0, losses: 0
+          };
+        }
+        const entry = byOpponent[r.playerId];
+        entry.gamesTogether += 1;
+        if (mine.rank < r.rank) entry.wins += 1;
+        else if (mine.rank > r.rank) entry.losses += 1;
+      });
+    });
+    return Object.values(byOpponent).sort((a, b) => b.gamesTogether - a.gamesTogether);
+  }
+
+  /* 最近20戦（第5-9章：プレイヤー詳細） */
+  function computeRecentGames(playerId, { games, sessions }, limit = 20) {
+    const sessionsById = indexById(sessions);
+    const finished = games.filter(isGameComplete).filter(g => g.results.some(r => r.playerId === playerId));
+    return finished
+      .map(g => ({ game: g, session: sessionsById[g.sessionId], result: g.results.find(r => r.playerId === playerId) }))
+      .filter(entry => !!entry.session)
+      .sort((a, b) => (new Date(b.session.date) - new Date(a.session.date)) || (b.game.gameNumber - a.game.gameNumber))
+      .slice(0, limit);
+  }
+
+  return { computePlayerStats, computeRanking, computeOpponentStats, computeRecentGames, isGameComplete };
+})();
+
+/* ============================================================
+   Export：CSV・JSONの書き出しを担当する（第7章 準拠）
+   ============================================================ */
+const Export = (() => {
+  const PLAYERS_HEADERS = ["id", "name", "color", "favorite", "memo", "createdAt", "updatedAt", "deleted"];
+  const RULES_HEADERS = ["id", "name", "gameType", "startPoint", "returnPoint", "uma", "tobiPoint", "tobiEnabled", "allowNegative", "allowWestRound", "pointRounding", "createdAt"];
+  const SESSIONS_HEADERS = ["id", "date", "title", "ruleId", "playerIds", "createdAt", "updatedAt", "deleted"];
+  const GAMES_HEADERS = ["id", "sessionId", "gameNumber", "startTime", "endTime", "seatWinds", "isFinished", "isWestRound", "memo"];
+  const RESULTS_HEADERS = ["gameId", "playerId", "playerNameSnapshot", "rank", "finalPoint", "scorePoint", "umaPoint", "okaPoint", "tobiPoint", "totalPoint"];
+
+  function playersToRows(players) {
+    return players.map(p => [p.id, p.name, p.color, p.favorite, p.memo, p.createdAt, p.updatedAt, p.deleted]);
+  }
+  function rulesToRows(rules) {
+    return rules.map(r => [r.id, r.name, r.gameType, r.startPoint, r.returnPoint, r.uma.join(";"), r.tobiPoint, r.tobiEnabled, r.allowNegative, r.allowWestRound, r.pointRounding, r.createdAt]);
+  }
+  function sessionsToRows(sessions) {
+    return sessions.map(s => [s.id, s.date, s.title, s.ruleId, (s.playerIds || []).join(";"), s.createdAt, s.updatedAt, s.deleted]);
+  }
+  function gamesToRows(games) {
+    return games.map(g => [g.id, g.sessionId, g.gameNumber, g.startTime, g.endTime, JSON.stringify(g.seatWinds || {}), g.isFinished, g.isWestRound, g.memo]);
+  }
+  function resultsToRows(games) {
+    const rows = [];
+    games.forEach(g => {
+      (g.results || []).forEach(r => {
+        rows.push([g.id, r.playerId, r.playerNameSnapshot, r.rank, r.finalPoint, r.scorePoint, r.umaPoint, r.okaPoint, r.tobiPoint, r.totalPoint]);
+      });
+    });
+    return rows;
+  }
+
+  /* 5つのCSVを個別ファイルとして出力する（第7章 8節：1ファイルではなく複数CSVとして出力） */
+  function exportAllCsv() {
+    const players = Storage.getPlayers();
+    const rules = Storage.getRules();
+    const sessions = Storage.getSessions();
+    const games = Storage.getGames();
+
+    const files = [
+      { filename: "players.csv", csv: Utility.arrayToCsv(PLAYERS_HEADERS, playersToRows(players)) },
+      { filename: "rules.csv", csv: Utility.arrayToCsv(RULES_HEADERS, rulesToRows(rules)) },
+      { filename: "sessions.csv", csv: Utility.arrayToCsv(SESSIONS_HEADERS, sessionsToRows(sessions)) },
+      { filename: "games.csv", csv: Utility.arrayToCsv(GAMES_HEADERS, gamesToRows(games)) },
+      { filename: "results.csv", csv: Utility.arrayToCsv(RESULTS_HEADERS, resultsToRows(games)) }
+    ];
+    files.forEach((f, index) => {
+      setTimeout(() => Utility.downloadTextFile(f.filename, f.csv), index * 300);
+    });
+    return files.length;
+  }
+
+  /* アプリ全体を1つのJSONファイルにバックアップする（第7章 10節） */
+  function exportJsonBackup() {
+    const backup = {
+      version: Storage.get(Storage.KEYS.version),
+      exportedAt: Utility.nowISO(),
+      players: Storage.getPlayers(),
+      rules: Storage.getRules(),
+      sessions: Storage.getSessions(),
+      games: Storage.getGames(),
+      settings: Storage.getSettings()
+    };
+    const filename = `mahjong_backup_${Utility.formatDateForFilename(new Date())}.json`;
+    Utility.downloadJsonFile(filename, backup);
+
+    const settings = Storage.getSettings();
+    settings.lastBackupAt = Utility.nowISO();
+    Storage.setSettings(settings);
+    return filename;
+  }
+
+  return {
+    PLAYERS_HEADERS, RULES_HEADERS, SESSIONS_HEADERS, GAMES_HEADERS, RESULTS_HEADERS,
+    exportAllCsv, exportJsonBackup
+  };
+})();
+
+/* ============================================================
+   Import：CSV・JSONの読み込みと整合性チェックを担当する（第7章 準拠）
+   ============================================================ */
+const Import = (() => {
+  function isNonEmpty(str) { return typeof str === "string" && str.length > 0; }
+  function isValidDate(str) { return !!str && !isNaN(new Date(str).getTime()); }
+  function parseBool(v) { return v === "true" || v === true; }
+  function parseNum(v) { const n = Number(v); return Number.isFinite(n) ? n : null; }
+  function parseSeatWinds(v) {
+    try { return v ? JSON.parse(v) : {}; } catch (e) { return {}; }
+  }
+
+  function rowsToObjects(headers, rows) {
+    return rows.map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = row[i]; });
+      return obj;
+    });
+  }
+  function headersMatch(actual, expected) {
+    return JSON.stringify(actual) === JSON.stringify(expected);
+  }
+
+  /* ファイル名から種別を判定し、該当するStorageキーを丸ごと置き換える（games.csvはresults.csvとセットで扱う） */
+  function importCsvFile(filename, text) {
+    const rows = Utility.parseCsv(text);
+    if (rows.length === 0) return { ok: false, error: `${filename}: ファイルが空です` };
+    const [headerRow, ...dataRows] = rows;
+
+    if (filename.includes("players")) {
+      if (!headersMatch(headerRow, Export.PLAYERS_HEADERS)) return { ok: false, error: "players.csvの列構成が正しくありません" };
+      const objs = rowsToObjects(headerRow, dataRows);
+      for (const o of objs) { if (!isNonEmpty(o.id)) return { ok: false, error: "players.csvにIDが空の行があります" }; }
+      const ids = objs.map(o => o.id);
+      if (new Set(ids).size !== ids.length) return { ok: false, error: "players.csvにID重複があります" };
+      const players = objs.map(o => ({
+        id: o.id, name: o.name, color: o.color,
+        favorite: parseBool(o.favorite), memo: o.memo,
+        createdAt: o.createdAt, updatedAt: o.updatedAt, deleted: parseBool(o.deleted)
+      }));
+      Storage.set(Storage.KEYS.players, players);
+      return { ok: true, type: "players", count: players.length };
+    }
+
+    if (filename.includes("rules")) {
+      if (!headersMatch(headerRow, Export.RULES_HEADERS)) return { ok: false, error: "rules.csvの列構成が正しくありません" };
+      const objs = rowsToObjects(headerRow, dataRows);
+      const rules = objs.map(o => ({
+        id: o.id, name: o.name, gameType: o.gameType,
+        startPoint: parseNum(o.startPoint), returnPoint: parseNum(o.returnPoint),
+        uma: (o.uma || "").split(";").map(Number),
+        tobiPoint: parseNum(o.tobiPoint), tobiEnabled: parseBool(o.tobiEnabled),
+        allowNegative: parseBool(o.allowNegative), allowWestRound: parseBool(o.allowWestRound),
+        pointRounding: o.pointRounding, createdAt: o.createdAt
+      }));
+      Storage.set(Storage.KEYS.rules, rules);
+      return { ok: true, type: "rules", count: rules.length };
+    }
+
+    if (filename.includes("sessions")) {
+      if (!headersMatch(headerRow, Export.SESSIONS_HEADERS)) return { ok: false, error: "sessions.csvの列構成が正しくありません" };
+      const objs = rowsToObjects(headerRow, dataRows);
+      for (const o of objs) { if (!isValidDate(o.date)) return { ok: false, error: "sessions.csvに不正な日付形式の行があります" }; }
+      const sessions = objs.map(o => ({
+        id: o.id, date: o.date, title: o.title, ruleId: o.ruleId,
+        playerIds: o.playerIds ? o.playerIds.split(";") : [],
+        createdAt: o.createdAt, updatedAt: o.updatedAt, deleted: parseBool(o.deleted)
+      }));
+      Storage.set(Storage.KEYS.sessions, sessions);
+      return { ok: true, type: "sessions", count: sessions.length };
+    }
+
+    if (filename.includes("games")) {
+      if (!headersMatch(headerRow, Export.GAMES_HEADERS)) return { ok: false, error: "games.csvの列構成が正しくありません" };
+      const objs = rowsToObjects(headerRow, dataRows);
+      const games = objs.map(o => ({
+        id: o.id, sessionId: o.sessionId, gameNumber: parseNum(o.gameNumber),
+        startTime: o.startTime, endTime: o.endTime || null, seatWinds: parseSeatWinds(o.seatWinds),
+        isFinished: parseBool(o.isFinished), isWestRound: parseBool(o.isWestRound), memo: o.memo,
+        results: []
+      }));
+      Storage.set(Storage.KEYS.games, games);
+      return { ok: true, type: "games", count: games.length };
+    }
+
+    if (filename.includes("results")) {
+      // results.csvは単体では復元できない（games.csvと組み合わせてimportGamesWithResultsを使う）
+      return { ok: false, error: "results.csvはgames.csvと同時に選択してください" };
+    }
+
+    return { ok: false, error: `認識できないファイルです: ${filename}` };
+  }
+
+  /* games.csv + results.csv を同時インポートする場合、resultsをgamesに正しく紐付ける */
+  function importGamesWithResults(gamesText, resultsText) {
+    const gameRows = Utility.parseCsv(gamesText);
+    if (gameRows.length === 0) return { ok: false, error: "games.csvが空です" };
+    const [gHeader, ...gData] = gameRows;
+    if (JSON.stringify(gHeader) !== JSON.stringify(Export.GAMES_HEADERS)) {
+      return { ok: false, error: "games.csvの列構成が正しくありません" };
+    }
+    const gameObjs = rowsToObjects(gHeader, gData);
+    const games = gameObjs.map(o => ({
+      id: o.id, sessionId: o.sessionId, gameNumber: parseNum(o.gameNumber),
+      startTime: o.startTime, endTime: o.endTime || null, seatWinds: parseSeatWinds(o.seatWinds),
+      isFinished: parseBool(o.isFinished), isWestRound: parseBool(o.isWestRound), memo: o.memo,
+      results: []
+    }));
+
+    if (resultsText) {
+      const resultRows = Utility.parseCsv(resultsText);
+      if (resultRows.length > 0) {
+        const [rHeader, ...rData] = resultRows;
+        if (JSON.stringify(rHeader) !== JSON.stringify(Export.RESULTS_HEADERS)) {
+          return { ok: false, error: "results.csvの列構成が正しくありません" };
+        }
+        rowsToObjects(rHeader, rData).forEach(o => {
+          const game = games.find(g => g.id === o.gameId);
+          if (!game) return;
+          game.results.push({
+            playerId: o.playerId, playerNameSnapshot: o.playerNameSnapshot,
+            rank: parseNum(o.rank), finalPoint: parseNum(o.finalPoint), scorePoint: parseNum(o.scorePoint),
+            umaPoint: parseNum(o.umaPoint), okaPoint: parseNum(o.okaPoint), tobiPoint: parseNum(o.tobiPoint),
+            totalPoint: parseNum(o.totalPoint)
+          });
+        });
+      }
+    }
+    Storage.set(Storage.KEYS.games, games);
+    return { ok: true, type: "games+results", count: games.length };
+  }
+
+  function validateJsonBackup(obj) {
+    if (!obj || typeof obj !== "object") return { ok: false, error: "JSONの形式が正しくありません" };
+    const requiredKeys = ["players", "rules", "sessions", "games", "settings"];
+    for (const key of requiredKeys) {
+      if (!(key in obj)) return { ok: false, error: `必須項目が不足しています: ${key}` };
+    }
+    if (![obj.players, obj.rules, obj.sessions, obj.games].every(Array.isArray)) {
+      return { ok: false, error: "データ形式が正しくありません" };
+    }
+    return { ok: true };
+  }
+
+  function importJsonBackup(obj) {
+    const check = validateJsonBackup(obj);
+    if (!check.ok) return check;
+    Storage.set(Storage.KEYS.players, obj.players);
+    Storage.set(Storage.KEYS.rules, obj.rules);
+    Storage.set(Storage.KEYS.sessions, obj.sessions);
+    Storage.set(Storage.KEYS.games, obj.games);
+    const settings = Object.assign(Models.createDefaultSettings(), obj.settings || {});
+    Storage.set(Storage.KEYS.settings, settings);
+    return { ok: true };
+  }
+
+  return { importCsvFile, importGamesWithResults, validateJsonBackup, importJsonBackup };
+})();
+
+/* ============================================================
+   Share：LINE共有用の画像生成を担当する（第7章 準拠）
+   ============================================================ */
+const Share = (() => {
+  function drawText(ctx, text, x, y, opts = {}) {
+    ctx.font = opts.font || "28px sans-serif";
+    ctx.fillStyle = opts.color || "#212529";
+    ctx.textAlign = opts.align || "left";
+    ctx.textBaseline = opts.baseline || "alphabetic";
+    ctx.fillText(text, x, y);
+  }
+
+  /* 紙の記録票を参考にしつつスマホ向けに最適化した縦長画像を生成する（第7章 4節） */
+  function generateSessionImage({ session, rule, finishedGames, players }) {
+    const width = 1080;
+    const marginX = 60;
+    const nameColWidth = 220;
+    const GAMES_PER_BLOCK = 10; // 10半荘ごとに次の段へ改行する
+    const gameColWidth = Math.max(60, Math.floor((width - marginX * 2 - nameColWidth) / GAMES_PER_BLOCK));
+    const totalColWidth = 96;
+    const rowHeight = 90;
+    const blockGap = 30;
+
+    const blocks = [];
+    for (let i = 0; i < finishedGames.length; i += GAMES_PER_BLOCK) {
+      blocks.push(finishedGames.slice(i, i + GAMES_PER_BLOCK));
+    }
+    if (blocks.length === 0) blocks.push([]);
+
+    const totalsByPlayer = {};
+    players.forEach(p => {
+      totalsByPlayer[p.id] = finishedGames.reduce((s, g) => {
+        const r = g.results.find(res => res.playerId === p.id);
+        return s + (r ? r.totalPoint : 0);
+      }, 0);
+    });
+
+    /* 描画処理そのものを「高さの計測」と「実際の描画」の両方で使い回すことで、
+       事前計算した高さと実際の描画内容が必ず一致するようにする（ズレによる見切れ防止） */
+    function draw(ctx) {
+      let y = 100;
+      const dateLabel = new Date(session.date).toLocaleDateString("ja-JP");
+      drawText(ctx, dateLabel, marginX, y, { font: "bold 44px sans-serif" });
+      y += 56;
+      drawText(ctx, `${rule ? rule.name : ""}　${rule && rule.gameType === "yonma" ? "四人麻雀" : "三人麻雀"}`, marginX, y, { font: "32px sans-serif", color: "#6C757D" });
+      y += 40;
+
+      ctx.strokeStyle = "#DEE2E6"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(width - marginX, y); ctx.stroke();
+      y += 50;
+
+      blocks.forEach((block, blockIndex) => {
+        const isLastBlock = blockIndex === blocks.length - 1;
+
+        let hx = marginX + nameColWidth;
+        block.forEach(g => {
+          drawText(ctx, `半${g.gameNumber}`, hx + gameColWidth / 2, y, { font: "24px sans-serif", color: "#6C757D", align: "center" });
+          hx += gameColWidth;
+        });
+        if (isLastBlock) {
+          drawText(ctx, "合計", hx + totalColWidth / 2, y, { font: "bold 26px sans-serif", align: "center" });
+        }
+        y += 20;
+
+        ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(width - marginX, y); ctx.stroke();
+        y += rowHeight * 0.5;
+
+        players.forEach(p => {
+          ctx.fillStyle = p.color || "#999";
+          ctx.beginPath(); ctx.arc(marginX + 20, y - 8, 16, 0, Math.PI * 2); ctx.fill();
+          drawText(ctx, p.name, marginX + 48, y, { font: "30px sans-serif" });
+
+          let cx = marginX + nameColWidth;
+          block.forEach(g => {
+            const r = g.results.find(res => res.playerId === p.id);
+            const tp = r ? r.totalPoint : 0;
+            drawText(ctx, `${tp > 0 ? "+" : ""}${tp}`, cx + gameColWidth / 2, y, {
+              font: "26px sans-serif", color: tp > 0 ? "#007AFF" : (tp < 0 ? "#DC3545" : "#6C757D"), align: "center"
+            });
+            cx += gameColWidth;
+          });
+          if (isLastBlock) {
+            const total = totalsByPlayer[p.id];
+            drawText(ctx, `${total > 0 ? "+" : ""}${total}`, cx + totalColWidth / 2, y, {
+              font: "bold 30px sans-serif", color: total > 0 ? "#007AFF" : (total < 0 ? "#DC3545" : "#212529"), align: "center"
+            });
+          }
+          y += rowHeight;
+        });
+
+        if (!isLastBlock) y += blockGap;
+      });
+
+      y += 30;
+      ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(width - marginX, y); ctx.stroke();
+      y += 60;
+
+      drawText(ctx, "順位", marginX, y, { font: "bold 32px sans-serif" });
+      y += 50;
+      const ranked = players.map(p => ({ player: p, total: totalsByPlayer[p.id] })).sort((a, b) => b.total - a.total);
+      const rankMarks = ["①", "②", "③", "④", "⑤", "⑥"];
+      ranked.forEach((entry, index) => {
+        drawText(ctx, `${rankMarks[index] || (index + 1) + "位"} ${entry.player.name}`, marginX + 20, y, { font: "28px sans-serif" });
+        y += 48;
+      });
+
+      y += 40; // 下部マージン
+      return y;
+    }
+
+    // 1回目：実際には描画しない疑似コンテキストで、必要な高さだけを求める
+    const measureCtx = {
+      fillStyle: "", strokeStyle: "", lineWidth: 0,
+      font: "", textAlign: "", textBaseline: "",
+      fillText() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {}, arc() {}, fill() {}
+    };
+    const measuredHeight = draw(measureCtx);
+    const height = Math.max(1920, Math.ceil(measuredHeight));
+
+    // 2回目：正しい高さのCanvasに実際に描画する
+    const canvas = document.createElement("canvas");
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#FFFFFF";
+    ctx.fillRect(0, 0, width, height);
+    draw(ctx);
+
+    return canvas;
+  }
+
+  /* Canvasをあらかじめ Blob 化しておくためのヘルパー。
+     navigator.share() は「直近のユーザー操作（クリック等）から間を置かず同期的に呼ぶ」必要があり、
+     クリック後に canvas.toBlob の非同期コールバック内で呼ぶと、iOS Safari等ではユーザー操作と
+     みなされず share() が無言で失敗する（＝共有シートが出ない）ことがある。
+     そのためBlobは事前に用意しておき、クリック時は同期的にshare()を呼べるようにする。 */
+  function canvasToBlob(canvas) {
+    return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  }
+
+  function canShareFiles(file) {
+    return !!(navigator.canShare && navigator.canShare({ files: [file] }));
+  }
+
+  return { generateSessionImage, canvasToBlob, canShareFiles };
+})();
+
+/* ---------- Controller：ユーザー操作の受け取りとUI呼び出し ---------- */
+const Controller = (() => {
+  let editingPlayerId = null; // null = 新規追加
+  let editingRuleId = null;   // null = 新規追加
+  let selectedPlayerColor = PLAYER_COLOR_CHOICES[0].value;
+  let selectedRuleGameType = "yonma";
+
+  // Phase3: 対局記録
+  let sessionStartGameType = "yonma";
+  let sessionStartRuleId = null;
+  let sessionStartPlayerIds = [];
+  let activeGameId = null;
+  let lastDeletedGame = null;
+  let pendingCalculation = null; // { gameId, results, tobi } - 保存前の計算結果
+  let statsPeriod = "all"; // "today" | "month" | "all"
+  let historySearchText = "";
+  let historySortOrder = "newest"; // "newest" | "oldest" | "points"
+  let pendingShareCanvas = null;
+  let pendingShareBlob = null;
+  let pendingShareFilename = null;
+  let undoTimer = null;
+
+  /* ===== プレイヤーダイアログ ===== */
+  function buildPlayerPickerGrids() {
+    const colorGrid = document.getElementById("player-color-grid");
+    colorGrid.innerHTML = PLAYER_COLOR_CHOICES.map(c =>
+      `<button type="button" class="color-choice" data-color="${c.value}" title="${c.name}" style="background:${c.value}"></button>`
+    ).join("");
+    colorGrid.querySelectorAll(".color-choice").forEach(btn => {
+      btn.addEventListener("click", () => {
+        selectedPlayerColor = btn.dataset.color;
+        refreshPlayerPickerSelection();
+      });
+    });
+  }
+
+  function refreshPlayerPickerSelection() {
+    document.querySelectorAll("#player-color-grid .color-choice").forEach(btn => {
+      btn.classList.toggle("is-selected", btn.dataset.color === selectedPlayerColor);
+    });
+  }
+
+
+  function openPlayerDialog(playerId) {
+    editingPlayerId = playerId ?? null;
+    const isEdit = !!editingPlayerId;
+    const player = isEdit ? PlayerManager.getById(editingPlayerId) : null;
+
+    document.getElementById("player-dialog-title").textContent = isEdit ? "プレイヤー編集" : "プレイヤー追加";
+    document.getElementById("player-name-input").value = player?.name ?? "";
+    document.getElementById("player-favorite-input").checked = player?.favorite ?? false;
+    document.getElementById("player-memo-input").value = player?.memo ?? "";
+    selectedPlayerColor = player?.color ?? PLAYER_COLOR_CHOICES[0].value;
+    refreshPlayerPickerSelection();
+    document.getElementById("player-dialog-delete").style.display = isEdit ? "block" : "none";
+
+    Dialog.open("player-dialog-overlay");
+    setTimeout(() => document.getElementById("player-name-input").focus(), 50);
+  }
+
+  function savePlayerDialog() {
+    const data = {
+      name: document.getElementById("player-name-input").value,
+      color: selectedPlayerColor,
+      favorite: document.getElementById("player-favorite-input").checked,
+      memo: document.getElementById("player-memo-input").value
+    };
+    const result = editingPlayerId
+      ? PlayerManager.update(editingPlayerId, data)
+      : PlayerManager.add(data);
+
+    if (!result.ok) {
+      UI.showToast(result.error, "error");
+      return;
+    }
+    Dialog.close("player-dialog-overlay");
+    UI.renderPlayerList(document.getElementById("player-search").value);
+    UI.showToast("保存しました", "success");
+  }
+
+  function deletePlayerFromDialog() {
+    if (!editingPlayerId) return;
+    const player = PlayerManager.getById(editingPlayerId);
+    Dialog.confirm(
+      "プレイヤーを削除しますか？",
+      `「${player?.name ?? ""}」を削除します。過去の対局履歴は保持されます。`,
+      () => {
+        PlayerManager.softDelete(editingPlayerId);
+        Dialog.close("player-dialog-overlay");
+        UI.renderPlayerList(document.getElementById("player-search").value);
+        renderStatsScreen();
+        renderHomeRankingAndRecent();
+        renderHistoryScreen();
+        UI.showToast("削除しました", "success");
+      }
+    );
+  }
+
+  /* ===== ルールダイアログ ===== */
+  function setRuleGameType(gameType) {
+    selectedRuleGameType = gameType;
+    document.querySelectorAll("#rule-gametype-segmented .segmented-btn").forEach(btn => {
+      btn.classList.toggle("is-selected", btn.dataset.value === gameType);
+    });
+    // 新規追加時のみ、種別変更でデフォルト値を反映する
+    if (!editingRuleId) {
+      const defaults = Models.createRulePreset({ gameType });
+      document.getElementById("rule-start-point").value = defaults.startPoint;
+      document.getElementById("rule-return-point").value = defaults.returnPoint;
+      document.getElementById("rule-uma-input").value = defaults.uma.join(",");
+      document.getElementById("rule-tobi-point").value = defaults.tobiPoint;
+    }
+  }
+
+  function openRuleDialog(ruleId) {
+    editingRuleId = ruleId ?? null;
+    const isEdit = !!editingRuleId;
+    const rule = isEdit ? RuleManager.getById(editingRuleId) : null;
+
+    document.getElementById("rule-dialog-title").textContent = isEdit ? "ルール編集" : "ルール追加";
+    document.getElementById("rule-name-input").value = rule?.name ?? "";
+    setRuleGameType(rule?.gameType ?? "yonma");
+    if (rule) {
+      document.getElementById("rule-start-point").value = rule.startPoint;
+      document.getElementById("rule-return-point").value = rule.returnPoint;
+      document.getElementById("rule-uma-input").value = rule.uma.join(",");
+      document.getElementById("rule-tobi-point").value = rule.tobiPoint;
+    }
+    document.getElementById("rule-tobi-enabled").checked = rule?.tobiEnabled ?? true;
+    document.getElementById("rule-allow-negative").checked = rule?.allowNegative ?? true;
+    document.getElementById("rule-allow-west").checked = rule?.allowWestRound ?? true;
+
+    document.getElementById("rule-dialog-delete").style.display = isEdit ? "inline-flex" : "none";
+    document.getElementById("rule-dialog-copy").style.display = isEdit ? "inline-flex" : "none";
+
+    Dialog.open("rule-dialog-overlay");
+    setTimeout(() => document.getElementById("rule-name-input").focus(), 50);
+  }
+
+  function saveRuleDialog() {
+    const name = document.getElementById("rule-name-input").value.trim();
+    if (!name) { UI.showToast("ルール名を入力してください", "error"); return; }
+
+    const startPoint = Number(document.getElementById("rule-start-point").value);
+    const returnPoint = Number(document.getElementById("rule-return-point").value);
+    if (!Number.isFinite(startPoint) || !Number.isFinite(returnPoint) || startPoint <= 0 || returnPoint <= 0) {
+      UI.showToast("配給原点・返し点は正の数で入力してください", "error");
+      return;
+    }
+
+    const requiredCount = selectedRuleGameType === "yonma" ? 4 : 3;
+    const umaRaw = document.getElementById("rule-uma-input").value.split(",").map(s => s.trim()).filter(s => s !== "");
+    const uma = umaRaw.map(Number);
+    if (uma.length !== requiredCount || uma.some(n => !Number.isFinite(n))) {
+      UI.showToast(`ウマは${requiredCount}人分の数値をカンマ区切りで入力してください`, "error");
+      return;
+    }
+
+    const tobiPoint = Number(document.getElementById("rule-tobi-point").value) || 0;
+
+    const data = {
+      name,
+      gameType: selectedRuleGameType,
+      startPoint,
+      returnPoint,
+      uma,
+      tobiPoint,
+      tobiEnabled: document.getElementById("rule-tobi-enabled").checked,
+      allowNegative: document.getElementById("rule-allow-negative").checked,
+      allowWestRound: document.getElementById("rule-allow-west").checked
+    };
+
+    const result = editingRuleId ? RuleManager.update(editingRuleId, data) : RuleManager.add(data);
+    if (!result.ok) { UI.showToast(result.error, "error"); return; }
+
+    Dialog.close("rule-dialog-overlay");
+    UI.renderRuleList();
+    UI.showToast("保存しました", "success");
+  }
+
+  function deleteRuleFromDialog() {
+    if (!editingRuleId) return;
+    const rule = RuleManager.getById(editingRuleId);
+    Dialog.confirm(
+      "ルールを削除しますか？",
+      `「${rule?.name ?? ""}」を削除します。`,
+      () => {
+        RuleManager.remove(editingRuleId);
+        Dialog.close("rule-dialog-overlay");
+        UI.renderRuleList();
+        UI.showToast("削除しました", "success");
+      }
+    );
+  }
+
+  function duplicateRuleFromDialog() {
+    if (!editingRuleId) return;
+    RuleManager.duplicate(editingRuleId);
+    Dialog.close("rule-dialog-overlay");
+    UI.renderRuleList();
+    UI.showToast("複製しました", "success");
+  }
+
+  /* ===== 対局開始ダイアログ ===== */
+  function requiredPlayerCount() {
+    return sessionStartGameType === "yonma" ? 4 : 3;
+  }
+
+  function openSessionStartDialog() {
+    sessionStartGameType = "yonma";
+    sessionStartRuleId = null;
+    sessionStartPlayerIds = [];
+    setSessionGameType("yonma");
+    renderSessionPlayerList();
+    updateSessionStartValidity();
+    Dialog.open("session-start-dialog-overlay");
+  }
+
+  function setSessionGameType(gameType) {
+    sessionStartGameType = gameType;
+    document.querySelectorAll("#session-gametype-segmented .segmented-btn").forEach(btn => {
+      btn.classList.toggle("is-selected", btn.dataset.value === gameType);
+    });
+    // 種別に合わないプレイヤー選択・ルール選択はリセットする
+    sessionStartPlayerIds = [];
+    sessionStartRuleId = null;
+    renderSessionRuleList();
+    renderSessionPlayerList();
+    updateSessionStartValidity();
+  }
+
+  function renderSessionRuleList() {
+    const container = document.getElementById("session-rule-list");
+    const rules = RuleManager.getAll().filter(r => r.gameType === sessionStartGameType);
+    if (rules.length === 0) {
+      container.innerHTML = `<div class="empty-state" style="padding:16px;"><div class="empty-state__desc">この種別のルールがありません。先に設定画面でルールを追加してください。</div></div>`;
+      return;
+    }
+    if (!sessionStartRuleId) sessionStartRuleId = rules[0].id;
+    container.innerHTML = rules.map(r => `
+      <div class="list-row" data-rule-select-id="${r.id}" style="${r.id === sessionStartRuleId ? "border-color:var(--primary);" : ""}">
+        <div class="list-row__main">
+          <div class="list-row__name">${UI.escapeHtml ? UI.escapeHtml(r.name) : r.name}</div>
+          <div class="list-row__sub">配給${r.startPoint} / 返し${r.returnPoint}</div>
+        </div>
+        ${r.id === sessionStartRuleId ? '<span class="badge" style="border-color:var(--primary); color:var(--primary);">選択中</span>' : ""}
+      </div>
+    `).join("");
+    container.querySelectorAll("[data-rule-select-id]").forEach(row => {
+      row.addEventListener("click", () => {
+        sessionStartRuleId = row.dataset.ruleSelectId;
+        renderSessionRuleList();
+        updateSessionStartValidity();
+      });
+    });
+  }
+
+  function renderSessionPlayerList() {
+    const container = document.getElementById("session-player-list");
+    const players = PlayerManager.getAllActive();
+    if (players.length === 0) {
+      container.innerHTML = `<div class="empty-state" style="padding:16px;"><div class="empty-state__desc">プレイヤーが登録されていません。先にプレイヤーを追加してください。</div></div>`;
+    } else {
+      container.innerHTML = players.map(p => `
+        <label class="player-select-row">
+          <input type="checkbox" data-session-player-id="${p.id}" ${sessionStartPlayerIds.includes(p.id) ? "checked" : ""}>
+          <span class="player-select-row__icon" style="--row-color:${p.color}"></span>
+          <span class="player-select-row__name">${p.name}</span>
+        </label>
+      `).join("");
+      container.querySelectorAll("[data-session-player-id]").forEach(cb => {
+        cb.addEventListener("change", (e) => {
+          const id = e.target.dataset.sessionPlayerId;
+          if (e.target.checked) {
+            if (sessionStartPlayerIds.length >= requiredPlayerCount()) {
+              e.target.checked = false;
+              UI.showToast(`${requiredPlayerCount()}人まで選択できます`, "error");
+              return;
+            }
+            sessionStartPlayerIds.push(id);
+          } else {
+            sessionStartPlayerIds = sessionStartPlayerIds.filter(pid => pid !== id);
+          }
+          updateSessionStartValidity();
+          document.getElementById("session-player-count-label").textContent =
+            `${sessionStartPlayerIds.length}/${requiredPlayerCount()}人選択中`;
+          document.getElementById("session-player-count-label").classList.toggle("is-ok", sessionStartPlayerIds.length === requiredPlayerCount());
+        });
+      });
+    }
+    const label = document.getElementById("session-player-count-label");
+    label.textContent = `${sessionStartPlayerIds.length}/${requiredPlayerCount()}人選択中`;
+    label.classList.toggle("is-ok", sessionStartPlayerIds.length === requiredPlayerCount());
+  }
+
+  function updateSessionStartValidity() {
+    const valid = sessionStartRuleId
+      && sessionStartPlayerIds.length === requiredPlayerCount();
+    document.getElementById("session-start-btn").disabled = !valid;
+  }
+
+  function startSession() {
+    const players = sessionStartPlayerIds.map(id => PlayerManager.getById(id)).filter(Boolean);
+    const session = SessionManager.create({
+      ruleId: sessionStartRuleId,
+      playerIds: sessionStartPlayerIds
+    });
+    const game = GameManager.addForSession(session.id, players);
+    SessionManager.setCurrent(session.id);
+    activeGameId = game.id;
+    Dialog.close("session-start-dialog-overlay");
+    UI.showScreen("record");
+    document.querySelectorAll(".tab-item").forEach(el => el.classList.toggle("is-active", el.dataset.tab === "record"));
+    renderRecordScreen();
+    UI.showToast("対局を開始しました。半荘の風（東・南・西・北）を設定してください", "success");
+  }
+
+  /* ===== 記録画面 ===== */
+  function buildTotalBannerHtml(currentTotal, requiredTotal, allFilled, isMatch) {
+    if (!allFilled) {
+      return `<div class="total-banner">現在合計：${currentTotal}点（未入力あり）／ 必要：${requiredTotal}点</div>`;
+    }
+    if (isMatch) {
+      return `<div class="total-banner is-ok">✓ 合計 ${currentTotal}点 一致しています</div>`;
+    }
+    const diff = requiredTotal - currentTotal;
+    return `<div class="total-banner is-error">✕ 合計 ${currentTotal}点／必要 ${requiredTotal}点（${diff > 0 ? "あと" + diff + "点不足" : (-diff) + "点超過"}）</div>`;
+  }
+
+  /* 入力中はスコア欄を再描画せず、合計バナーと保存ボタンだけを更新する（フォーカス・入力途中の値を失わないため） */
+  function refreshTotalsUI(players, rule) {
+    const bannerContainer = document.getElementById("total-banner-container");
+    const saveBtn = document.getElementById("game-save-btn");
+    if (!bannerContainer || !rule) return;
+    const values = players.map(p => {
+      const el = document.querySelector(`[data-score-player-id="${p.id}"]`);
+      if (!el || el.value === "") return undefined;
+      return Number(el.value);
+    });
+    const allFilled = values.every(v => Number.isFinite(v));
+    const currentTotal = values.reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0);
+    const requiredTotal = rule.startPoint * players.length;
+    const isMatch = allFilled && currentTotal === requiredTotal;
+    bannerContainer.innerHTML = buildTotalBannerHtml(currentTotal, requiredTotal, allFilled, isMatch);
+    if (saveBtn) saveBtn.disabled = !isMatch;
+  }
+
+  function computeWindsComplete(game, players) {
+    if (!game) return false;
+    const winds = game.seatWinds || {};
+    const values = players.map(p => winds[p.id]).filter(Boolean);
+    return values.length === players.length && new Set(values).size === players.length;
+  }
+
+  function renderRecordScreen() {
+    const container = document.getElementById("record-screen-content");
+    const session = SessionManager.getCurrent();
+
+    if (!session) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state__icon">✏️</div>
+          <div class="empty-state__title">対局が開始されていません</div>
+          <div class="empty-state__desc">「記録開始」から対局を始めましょう</div>
+          <button class="btn btn-primary" id="record-empty-start-btn" style="margin-top:16px; width:auto; padding:0 24px;">記録開始</button>
+        </div>`;
+      document.getElementById("record-empty-start-btn").addEventListener("click", openSessionStartDialog);
+      return;
+    }
+
+    const rule = RuleManager.getById(session.ruleId);
+    const players = session.playerIds.map(id => PlayerManager.getById(id)).filter(Boolean);
+    const games = GameManager.getBySession(session.id);
+    if (!activeGameId || !games.find(g => g.id === activeGameId)) {
+      activeGameId = games[games.length - 1]?.id ?? null;
+    }
+    const activeGame = games.find(g => g.id === activeGameId);
+    const dateLabel = new Date(session.date).toLocaleDateString("ja-JP");
+
+    const participantsHtml = players.map(p => `
+      <div class="participant-chip" style="--participant-color:${p.color}">
+        ${UI.colorDot(p.color)}${p.name}
+      </div>
+    `).join("");
+
+    const tabsHtml = games.map(g => `
+      <button type="button" class="game-tab ${g.id === activeGameId ? "is-active" : ""} ${g.isFinished ? "is-finished" : ""}" data-game-tab-id="${g.id}">${g.gameNumber}</button>
+    `).join("") + `<button type="button" class="game-tab-add" id="game-add-btn">＋</button>`;
+
+    const requiredTotal = rule ? rule.startPoint * players.length : 0;
+    const currentValues = activeGame ? players.map(p => {
+      const r = activeGame.results.find(res => res.playerId === p.id);
+      return r?.finalPoint;
+    }) : [];
+    const currentTotal = currentValues.reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0);
+    const allFilled = currentValues.every(v => Number.isFinite(v));
+    const isMatch = allFilled && currentTotal === requiredTotal;
+
+    const availableWinds = players.length === 3 ? ["east", "south", "west"] : ["east", "south", "west", "north"];
+    const windsComplete = computeWindsComplete(activeGame, players);
+
+    const scoreRowsHtml = activeGame ? players.map(p => {
+      const result = activeGame.results.find(res => res.playerId === p.id);
+      const value = result?.finalPoint;
+      const seatWinds = activeGame.seatWinds || {};
+      const myWind = seatWinds[p.id];
+      const windButtonsHtml = availableWinds.map(w => {
+        const takenByOther = Object.entries(seatWinds).some(([pid, wd]) => pid !== p.id && wd === w);
+        return `<button type="button" class="wind-btn ${myWind === w ? "is-selected" : ""} ${takenByOther ? "is-disabled" : ""}"
+                        data-wind-player-id="${p.id}" data-wind-value="${w}" ${takenByOther ? "disabled" : ""}>${Calculator.SEAT_WIND_LABELS[w]}</button>`;
+      }).join("");
+      return `
+        <div class="score-row">
+          <div class="score-row__top">
+            <span class="score-row__icon" style="--row-color:${p.color}"></span>
+            <span class="score-row__name">${p.name}</span>
+            <div class="wind-picker">${windButtonsHtml}</div>
+          </div>
+          <input type="number" class="score-row__input"
+                 data-score-player-id="${p.id}"
+                 placeholder="持ち点"
+                 value="${Number.isFinite(value) ? value : ""}">
+        </div>
+      `;
+    }).join("") : "";
+
+    const totalBannerHtml = activeGame ? buildTotalBannerHtml(currentTotal, requiredTotal, allFilled, isMatch) : "";
+
+    const pendingForThisGame = activeGame && pendingCalculation && pendingCalculation.gameId === activeGame.id
+      ? pendingCalculation
+      : null;
+    const savedResults = activeGame && activeGame.results?.every(r => r.rank != null) ? activeGame.results : null;
+    const displayResults = pendingForThisGame ? pendingForThisGame.results : savedResults;
+    const canSave = !!pendingForThisGame;
+    const resultsCardHtml = displayResults ? buildResultsCardHtml(displayResults, players) : "";
+
+    container.innerHTML = `
+      <div class="card record-header-card">
+        <div>
+          <div class="record-header-card__title">${dateLabel} ${rule ? rule.name : ""}</div>
+          <div class="record-header-card__info">${players.length}人 / ${rule && rule.gameType === "yonma" ? "四人麻雀" : "三人麻雀"}</div>
+        </div>
+        <button class="btn-inline" id="session-finish-btn">対局を終了</button>
+      </div>
+
+      <div class="participant-row">${participantsHtml}</div>
+
+      <div class="game-tab-strip">${tabsHtml}
+        ${activeGame ? `
+          <div class="game-tab-actions">
+            <button class="row-icon-btn" id="game-duplicate-btn" title="複製" aria-label="複製">📋</button>
+            ${games.length > 1 ? `<button class="row-icon-btn" id="game-delete-btn" title="削除" aria-label="削除">🗑️</button>` : ""}
+          </div>` : ""}
+      </div>
+
+      ${activeGame ? `
+        <div class="card">
+          ${scoreRowsHtml}
+        </div>
+        <div id="total-banner-container">${totalBannerHtml}</div>
+
+        <label class="checkbox-row" style="margin: 4px 0 14px;">
+          <input type="checkbox" id="west-round-checkbox" ${activeGame.isWestRound ? "checked" : ""}> この半荘は西入で終了した
+        </label>
+
+        ${!windsComplete ? `<p style="font-size:12px; color:var(--danger); margin:0 0 10px;">各プレイヤーの風（東・南・西・北）を重複なく設定してください</p>` : ""}
+        <button class="btn btn-secondary" id="game-calc-btn" ${(isMatch && windsComplete) ? "" : "disabled"}>${activeGame.isFinished ? "再計算" : "計算"}</button>
+
+        <div id="calc-results-container" style="margin-top:12px;">${resultsCardHtml}</div>
+
+        <button class="btn btn-primary" id="game-save-btn" style="margin-top:10px;" ${canSave ? "" : "disabled"}>保存</button>
+      ` : ""}
+    `;
+
+    wireRecordScreenEvents(session, activeGame, players, rule);
+  }
+
+  function buildResultsCardHtml(results, players) {
+    const sorted = [...results].sort((a, b) => a.rank - b.rank);
+    const rows = sorted.map(r => {
+      const p = players.find(pl => pl.id === r.playerId);
+      if (!p) return "";
+      const breakdownParts = [`素点${r.scorePoint}`, `ウマ${r.umaPoint >= 0 ? "+" : ""}${r.umaPoint}`];
+      if (r.okaPoint) breakdownParts.push(`オカ+${r.okaPoint}`);
+      if (r.tobiPoint) breakdownParts.push(`飛び${r.tobiPoint >= 0 ? "+" : ""}${r.tobiPoint}`);
+      return `
+        <div class="result-row">
+          <span class="result-row__rank ${r.rank === 1 ? "is-first" : ""}">${r.rank}</span>
+          <span class="result-row__icon" style="--row-color:${p.color}"></span>
+          <div style="flex:1; min-width:0;">
+            <div class="result-row__name">${p.name}</div>
+            <div class="result-row__breakdown">${breakdownParts.join(" / ")}</div>
+          </div>
+          <span class="result-row__total ${r.totalPoint > 0 ? "is-plus" : (r.totalPoint < 0 ? "is-minus" : "")}">${r.totalPoint > 0 ? "+" : ""}${r.totalPoint}</span>
+        </div>
+      `;
+    }).join("");
+    return `<div class="card">${rows}</div>`;
+  }
+
+  function wireRecordScreenEvents(session, activeGame, players, rule) {
+    document.getElementById("session-finish-btn").addEventListener("click", () => {
+      Dialog.confirm("対局を終了しますか？", "現在の対局セッションを終了し、ホームに戻ります。記録済みのデータは保持されます。", () => {
+        SessionManager.clearCurrent();
+        activeGameId = null;
+        renderRecordScreen();
+        UI.showScreen("home");
+        document.querySelectorAll(".tab-item").forEach(el => el.classList.toggle("is-active", el.dataset.tab === "home"));
+        UI.showToast("対局を終了しました", "success");
+      }, { confirmLabel: "終了", danger: false });
+    });
+
+    document.querySelectorAll("[data-game-tab-id]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        activeGameId = btn.dataset.gameTabId;
+        renderRecordScreen();
+      });
+    });
+
+    document.getElementById("game-add-btn").addEventListener("click", () => {
+      const newGame = GameManager.addForSession(session.id, players);
+      activeGameId = newGame.id;
+      renderRecordScreen();
+    });
+
+    const dupBtn = document.getElementById("game-duplicate-btn");
+    if (dupBtn) dupBtn.addEventListener("click", () => {
+      const copy = GameManager.duplicate(activeGameId);
+      if (copy) { activeGameId = copy.id; renderRecordScreen(); UI.showToast("複製しました", "success"); }
+    });
+
+    const delBtn = document.getElementById("game-delete-btn");
+    if (delBtn) delBtn.addEventListener("click", () => {
+      const games = GameManager.getBySession(session.id);
+      Dialog.confirm(`半荘${activeGame.gameNumber}を削除しますか？`, "この操作は元に戻すボタンで5秒以内なら取り消せます。", () => {
+        const removed = GameManager.remove(activeGameId);
+        lastDeletedGame = removed;
+        activeGameId = null;
+        renderRecordScreen();
+        renderHomeRankingAndRecent();
+        renderStatsScreen();
+        renderHistoryScreen();
+        showUndoBanner("半荘を削除しました", () => {
+          if (lastDeletedGame) {
+            GameManager.restore(lastDeletedGame);
+            activeGameId = lastDeletedGame.id;
+            lastDeletedGame = null;
+            renderRecordScreen();
+            renderHomeRankingAndRecent();
+            renderStatsScreen();
+            renderHistoryScreen();
+          }
+        });
+      });
+    });
+
+    document.querySelectorAll("[data-wind-player-id]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (btn.disabled) return;
+        const playerId = btn.dataset.windPlayerId;
+        const wind = btn.dataset.windValue;
+        const game = GameManager.getById(activeGameId);
+        const winds = (game && game.seatWinds) || {};
+        // 他のプレイヤーが同じ風を持っていたら外す（入れ替え）
+        Object.keys(winds).forEach(pid => {
+          if (pid !== playerId && winds[pid] === wind) GameManager.setSeatWind(activeGameId, pid, null);
+        });
+        // 自分がすでにこの風なら解除（トグル）、そうでなければ設定
+        GameManager.setSeatWind(activeGameId, playerId, winds[playerId] === wind ? null : wind);
+        renderRecordScreen();
+      });
+    });
+
+    document.querySelectorAll("[data-score-player-id]").forEach(input => {
+      input.addEventListener("input", (e) => {
+        const playerId = e.target.dataset.scorePlayerId;
+        const raw = e.target.value;
+        const num = raw === "" ? null : Number(raw);
+        // 自動保存：即時にStorageへ反映（入力欄は再描画しないためフォーカス・入力中の値は失われない）
+        GameManager.updateResult(activeGameId, playerId, Number.isFinite(num) ? num : null);
+        refreshTotalsUI(players, rule);
+        // 入力が変わったら、それまでの計算結果は無効化する（再計算を促す）
+        if (pendingCalculation && pendingCalculation.gameId === activeGameId) {
+          pendingCalculation = null;
+          const resultsContainer = document.getElementById("calc-results-container");
+          if (resultsContainer) resultsContainer.innerHTML = "";
+          const saveBtn = document.getElementById("game-save-btn");
+          if (saveBtn) saveBtn.disabled = true;
+        }
+        const calcBtn = document.getElementById("game-calc-btn");
+        if (calcBtn) {
+          const values = players.map(p => {
+            const el = document.querySelector(`[data-score-player-id="${p.id}"]`);
+            return el && el.value !== "" ? Number(el.value) : undefined;
+          });
+          const total = values.reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0);
+          const required = rule.startPoint * players.length;
+          const sumOk = values.every(v => Number.isFinite(v)) && total === required;
+          const freshGame = GameManager.getById(activeGameId);
+          calcBtn.disabled = !(sumOk && computeWindsComplete(freshGame, players));
+        }
+      });
+    });
+
+    const westCheckbox = document.getElementById("west-round-checkbox");
+    if (westCheckbox) westCheckbox.addEventListener("change", (e) => {
+      GameManager.setWestRound(activeGameId, e.target.checked);
+    });
+
+    const calcBtn = document.getElementById("game-calc-btn");
+    if (calcBtn) calcBtn.addEventListener("click", () => runCalculation(session, activeGame, players, rule));
+
+    const saveBtn = document.getElementById("game-save-btn");
+    if (saveBtn) saveBtn.addEventListener("click", () => {
+      if (!pendingCalculation || pendingCalculation.gameId !== activeGameId) return;
+      GameManager.saveComputedResults(activeGameId, pendingCalculation.results, { tobi: pendingCalculation.tobi });
+      pendingCalculation = null;
+      renderRecordScreen();
+      renderHomeRankingAndRecent();
+      renderStatsScreen();
+      renderHistoryScreen();
+      UI.showToast("半荘を保存しました", "success");
+    });
+  }
+
+  /* ===== Phase4: 点数計算フロー ===== */
+  function runCalculation(session, activeGame, players, rule) {
+    const finalPoints = {};
+    players.forEach(p => {
+      const el = document.querySelector(`[data-score-player-id="${p.id}"]`);
+      finalPoints[p.id] = el && el.value !== "" ? Number(el.value) : NaN;
+    });
+    const playerIds = players.map(p => p.id);
+    const seatWinds = (GameManager.getById(activeGame.id) || activeGame).seatWinds || {};
+    const negativePlayers = players.filter(p => finalPoints[p.id] < 0);
+
+    if (rule.tobiEnabled && negativePlayers.length > 0) {
+      Dialog.open("tobi-confirm-dialog-overlay");
+      const yesBtn = document.getElementById("tobi-confirm-yes");
+      const noBtn = document.getElementById("tobi-confirm-no");
+      const onYes = () => {
+        Dialog.close("tobi-confirm-dialog-overlay");
+        yesBtn.removeEventListener("click", onYes);
+        noBtn.removeEventListener("click", onNo);
+        openTobiSelectDialog({ players, negativePlayers, onConfirm: (tobi) => {
+          finalizeCalculation({ playerIds, finalPoints, rule, seatWinds, tobi, activeGame });
+        }});
+      };
+      const onNo = () => {
+        Dialog.close("tobi-confirm-dialog-overlay");
+        yesBtn.removeEventListener("click", onYes);
+        noBtn.removeEventListener("click", onNo);
+        finalizeCalculation({ playerIds, finalPoints, rule, seatWinds, tobi: null, activeGame });
+      };
+      yesBtn.addEventListener("click", onYes);
+      noBtn.addEventListener("click", onNo);
+    } else {
+      finalizeCalculation({ playerIds, finalPoints, rule, seatWinds, tobi: null, activeGame });
+    }
+  }
+
+  function openTobiSelectDialog({ players, negativePlayers, onConfirm }) {
+    let bustedId = negativePlayers.length === 1 ? negativePlayers[0].id : null;
+    let busterId = null;
+
+    function renderChips() {
+      const bustedRow = document.getElementById("tobi-busted-row");
+      bustedRow.innerHTML = negativePlayers.map(p => `
+        <button type="button" class="chip-btn ${bustedId === p.id ? "is-selected" : ""}" data-busted-id="${p.id}">${UI.colorDot(p.color)}${p.name}</button>
+      `).join("");
+      bustedRow.querySelectorAll("[data-busted-id]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          bustedId = btn.dataset.bustedId;
+          if (busterId === bustedId) busterId = null;
+          renderChips();
+        });
+      });
+
+      const busterRow = document.getElementById("tobi-buster-row");
+      const busterCandidates = players.filter(p => p.id !== bustedId);
+      busterRow.innerHTML = busterCandidates.map(p => `
+        <button type="button" class="chip-btn ${busterId === p.id ? "is-selected" : ""}" data-buster-id="${p.id}">${UI.colorDot(p.color)}${p.name}</button>
+      `).join("");
+      busterRow.querySelectorAll("[data-buster-id]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          busterId = btn.dataset.busterId;
+          renderChips();
+        });
+      });
+
+      document.getElementById("tobi-select-confirm").disabled = !(bustedId && busterId);
+    }
+    renderChips();
+    Dialog.open("tobi-select-dialog-overlay");
+
+    const confirmBtn = document.getElementById("tobi-select-confirm");
+    const cancelBtn = document.getElementById("tobi-select-cancel");
+    const onConfirmClick = () => {
+      Dialog.close("tobi-select-dialog-overlay");
+      confirmBtn.removeEventListener("click", onConfirmClick);
+      cancelBtn.removeEventListener("click", onCancelClick);
+      onConfirm({ bustedPlayerId: bustedId, busterPlayerId: busterId });
+    };
+    const onCancelClick = () => {
+      Dialog.close("tobi-select-dialog-overlay");
+      confirmBtn.removeEventListener("click", onConfirmClick);
+      cancelBtn.removeEventListener("click", onCancelClick);
+    };
+    confirmBtn.addEventListener("click", onConfirmClick);
+    cancelBtn.addEventListener("click", onCancelClick);
+  }
+
+  function finalizeCalculation({ playerIds, finalPoints, rule, seatWinds, tobi, activeGame }) {
+    const result = Calculator.calculate({ playerIds, finalPoints, rule, seatWinds, tobi });
+    if (!result.ok) {
+      UI.showToast(result.error, "error");
+      return;
+    }
+    pendingCalculation = { gameId: activeGame.id, results: result.results, tobi };
+    renderRecordScreen();
+    UI.showToast("計算しました。内容を確認して保存してください", "success");
+  }
+
+  function showUndoBanner(message, onUndo) {
+    const banner = document.getElementById("undo-banner");
+    document.getElementById("undo-banner-message").textContent = message;
+    banner.classList.add("is-visible");
+    clearTimeout(undoTimer);
+    const btn = document.getElementById("undo-banner-btn");
+    const handler = () => {
+      onUndo();
+      banner.classList.remove("is-visible");
+      btn.removeEventListener("click", handler);
+    };
+    btn.addEventListener("click", handler);
+    undoTimer = setTimeout(() => {
+      banner.classList.remove("is-visible");
+      btn.removeEventListener("click", handler);
+      lastDeletedGame = null;
+    }, 5000);
+  }
+
+  function checkRestoreOnStartup() {
+    const settings = Storage.getSettings();
+    if (settings.currentSessionId && SessionManager.getById(settings.currentSessionId)) {
+      Dialog.open("restore-dialog-overlay");
+    }
+  }
+
+  /* ===== Phase5: 成績集計 ===== */
+  function renderStatsScreen() {
+    document.querySelectorAll("#stats-period-segmented .segmented-btn").forEach(btn => {
+      btn.classList.toggle("is-selected", btn.dataset.period === statsPeriod);
+    });
+    const container = document.getElementById("stats-ranking-container");
+    const games = Storage.getGames();
+    const sessions = SessionManager.getAllActive();
+    const players = PlayerManager.getAllActive();
+    const ranking = Statistics.computeRanking({ games, sessions, players, period: statsPeriod, now: new Date() });
+
+    if (ranking.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state__icon">📊</div>
+          <div class="empty-state__title">成績データがありません</div>
+          <div class="empty-state__desc">対局を記録すると、成績が自動集計されます</div>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = ranking.map((entry, index) => {
+      const p = entry.player;
+      const s = entry.stats;
+      return `
+        <div class="ranking-row" data-ranking-player-id="${p.id}">
+          <span class="ranking-row__rank ${index === 0 ? "is-first" : ""}">${index + 1}</span>
+          <span class="ranking-row__icon" style="--row-color:${p.color}"></span>
+          <div class="ranking-row__main">
+            <div class="ranking-row__name">${p.name}</div>
+            <div class="ranking-row__sub">${s.gamesCount}半荘 / 平均順位${s.avgRank.toFixed(2)}</div>
+          </div>
+          <span class="ranking-row__total ${s.totalPoint > 0 ? "is-plus" : (s.totalPoint < 0 ? "is-minus" : "")}">${s.totalPoint > 0 ? "+" : ""}${s.totalPoint}</span>
+        </div>
+      `;
+    }).join("");
+
+    container.querySelectorAll("[data-ranking-player-id]").forEach(row => {
+      row.addEventListener("click", () => openPlayerDetailDialog(row.dataset.rankingPlayerId));
+    });
+  }
+
+  function renderHomeRankingAndRecent() {
+    const games = Storage.getGames();
+    const sessions = SessionManager.getAllActive();
+    const players = PlayerManager.getAllActive();
+
+    // 最近の対局（セッション単位、新しい順に最大5件）
+    const recentContainer = document.getElementById("home-recent-container");
+    const recentSessions = sessions
+      .map(s => ({ session: s, sessionGames: GameManager.getBySession(s.id).filter(g => g.isFinished) }))
+      .filter(entry => entry.sessionGames.length > 0)
+      .sort((a, b) => new Date(b.session.date) - new Date(a.session.date))
+      .slice(0, 5);
+
+    if (recentSessions.length === 0) {
+      recentContainer.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state__icon">🀄</div>
+          <div class="empty-state__title">まだ対局履歴がありません</div>
+          <div class="empty-state__desc">「記録開始」から最初の対局を記録しましょう</div>
+        </div>`;
+    } else {
+      recentContainer.innerHTML = `<div class="section-label">最近の対局</div>` + recentSessions.map(({ session, sessionGames }) => {
+        const rule = RuleManager.getById(session.ruleId);
+        const dateLabel = new Date(session.date).toLocaleDateString("ja-JP");
+        return `
+          <div class="card" style="padding:12px 16px; margin-bottom:8px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-weight:600; font-size:14px;">${dateLabel} ${rule ? rule.name : ""}</span>
+              <span class="badge">${sessionGames.length}半荘</span>
+            </div>
+          </div>`;
+      }).join("");
+    }
+
+    // 累計ランキング トップ3
+    const rankingContainer = document.getElementById("home-ranking-container");
+    const ranking = Statistics.computeRanking({ games, sessions, players, period: "all", now: new Date() }).slice(0, 3);
+    if (ranking.length > 0) {
+      rankingContainer.innerHTML = `<div class="section-label">累計ランキング</div>` + ranking.map((entry, index) => {
+        const p = entry.player;
+        const s = entry.stats;
+        return `
+          <div class="ranking-row" data-home-ranking-player-id="${p.id}">
+            <span class="ranking-row__rank ${index === 0 ? "is-first" : ""}">${index + 1}</span>
+            <span class="ranking-row__icon" style="--row-color:${p.color}"></span>
+            <div class="ranking-row__main"><div class="ranking-row__name">${p.name}</div></div>
+            <span class="ranking-row__total ${s.totalPoint > 0 ? "is-plus" : (s.totalPoint < 0 ? "is-minus" : "")}">${s.totalPoint > 0 ? "+" : ""}${s.totalPoint}</span>
+          </div>`;
+      }).join("");
+      rankingContainer.querySelectorAll("[data-home-ranking-player-id]").forEach(row => {
+        row.addEventListener("click", () => openPlayerDetailDialog(row.dataset.homeRankingPlayerId));
+      });
+    } else {
+      rankingContainer.innerHTML = "";
+    }
+  }
+
+  function openPlayerDetailDialog(playerId) {
+    const player = PlayerManager.getById(playerId);
+    if (!player) return;
+    const games = Storage.getGames();
+    const sessions = SessionManager.getAllActive();
+    const stats = Statistics.computePlayerStats(playerId, { games, sessions, period: "all", now: new Date() });
+
+    document.getElementById("player-detail-title").innerHTML = `${UI.colorDot(player.color)}${UI.escapeHtml(player.name)}`;
+    const body = document.getElementById("player-detail-body");
+
+    if (stats.gamesCount === 0) {
+      body.innerHTML = `<div class="empty-state"><div class="empty-state__desc">まだ対局記録がありません</div></div>`;
+      Dialog.open("player-detail-dialog-overlay");
+      return;
+    }
+
+    const opponents = Statistics.computeOpponentStats(playerId, { games });
+    const recent = Statistics.computeRecentGames(playerId, { games, sessions }, 20);
+
+    const statCells = [
+      { label: "半荘数", value: `${stats.gamesCount}半荘` },
+      { label: "平均順位", value: stats.avgRank.toFixed(2) },
+      { label: "合計ポイント", value: `${stats.totalPoint > 0 ? "+" : ""}${stats.totalPoint}` },
+      { label: "平均素点", value: Math.round(stats.avgRawScore).toLocaleString() },
+      { label: "1位率", value: `${stats.rate1.toFixed(1)}%` },
+      { label: "2位率", value: `${stats.rate2.toFixed(1)}%` },
+      { label: "3位率", value: `${stats.rate3.toFixed(1)}%` }
+    ];
+    if (stats.hasYonmaGames) statCells.push({ label: "4位率", value: `${stats.rate4.toFixed(1)}%` });
+
+    const statGridHtml = `<div class="stat-grid">${statCells.map(c => `
+      <div class="stat-cell"><div class="stat-cell__label">${c.label}</div><div class="stat-cell__value">${c.value}</div></div>
+    `).join("")}</div>`;
+
+    const recentHtml = recent.length ? recent.map(entry => {
+      const rule = RuleManager.getById(entry.session.ruleId);
+      const dateLabel = new Date(entry.session.date).toLocaleDateString("ja-JP");
+      const tp = entry.result.totalPoint;
+      return `
+        <div class="mini-row">
+          <span class="mini-row__label">${dateLabel} ${rule ? rule.name : ""} 半荘${entry.game.gameNumber} / ${entry.result.rank}位</span>
+          <span class="mini-row__value ${tp > 0 ? "is-plus" : (tp < 0 ? "is-minus" : "")}">${tp > 0 ? "+" : ""}${tp}</span>
+        </div>`;
+    }).join("") : `<div style="font-size:13px; color:var(--text-sub);">記録がありません</div>`;
+
+    const opponentHtml = opponents.length ? opponents.map(o => {
+      const opponentPlayer = PlayerManager.getById(o.opponentId);
+      const label = opponentPlayer ? `${UI.colorDot(opponentPlayer.color)}${UI.escapeHtml(opponentPlayer.name)}` : `${UI.escapeHtml(o.nameSnapshot)}（削除済み）`;
+      return `
+        <div class="mini-row">
+          <span class="mini-row__label">${label}（${o.gamesTogether}戦）</span>
+          <span class="mini-row__value">${o.wins}勝${o.losses}敗</span>
+        </div>`;
+    }).join("") : `<div style="font-size:13px; color:var(--text-sub);">対戦履歴がありません</div>`;
+
+    body.innerHTML = `
+      ${statGridHtml}
+      <div class="section-label">最近の対局（最大20戦）</div>
+      ${recentHtml}
+      <div class="section-label">対戦相手別成績</div>
+      ${opponentHtml}
+    `;
+
+    Dialog.open("player-detail-dialog-overlay");
+  }
+
+  /* ===== Phase6: 履歴編集 ===== */
+  function getSessionSummary(session) {
+    const rule = RuleManager.getById(session.ruleId);
+    const finishedGames = GameManager.getBySession(session.id).filter(g => g.isFinished);
+    const players = session.playerIds.map(id => PlayerManager.getById(id)).filter(Boolean);
+    // 検索対象：日付文字列 と 参加プレイヤー名
+    const dateLabel = new Date(session.date).toLocaleDateString("ja-JP");
+    // ポイント順ソート用：セッション内で記録された最大の単一半荘ポイント
+    let maxSinglePoint = -Infinity;
+    finishedGames.forEach(g => {
+      g.results.forEach(r => { if (r.totalPoint > maxSinglePoint) maxSinglePoint = r.totalPoint; });
+    });
+    if (finishedGames.length === 0) maxSinglePoint = -Infinity;
+    return { session, rule, finishedGames, players, dateLabel, maxSinglePoint };
+  }
+
+  function renderHistoryScreen() {
+    document.querySelectorAll("#history-sort-segmented .segmented-btn").forEach(btn => {
+      btn.classList.toggle("is-selected", btn.dataset.sort === historySortOrder);
+    });
+    const container = document.getElementById("history-list");
+    const sessions = SessionManager.getAllActive();
+    let summaries = sessions.map(getSessionSummary).filter(s => s.finishedGames.length > 0);
+
+    const keyword = historySearchText.trim().toLowerCase();
+    if (keyword) {
+      summaries = summaries.filter(s =>
+        s.dateLabel.toLowerCase().includes(keyword) ||
+        s.players.some(p => p.name.toLowerCase().includes(keyword))
+      );
+    }
+
+    summaries.sort((a, b) => {
+      if (historySortOrder === "oldest") return new Date(a.session.date) - new Date(b.session.date);
+      if (historySortOrder === "points") return b.maxSinglePoint - a.maxSinglePoint;
+      return new Date(b.session.date) - new Date(a.session.date); // newest（既定）
+    });
+
+    if (summaries.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state__icon">📜</div>
+          <div class="empty-state__title">${keyword ? "該当する対局がありません" : "まだ対局履歴がありません"}</div>
+          <div class="empty-state__desc">${keyword ? "" : "対局を記録すると、ここに一覧表示されます"}</div>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = summaries.map(s => `
+      <div class="history-row" data-session-id="${s.session.id}">
+        <div class="history-row__main">
+          <div class="history-row__title">${s.dateLabel} ${s.rule ? s.rule.name : ""}</div>
+          <div class="history-row__sub">${s.players.map(p => p.name).join("・")}</div>
+        </div>
+        <span class="badge">${s.finishedGames.length}半荘</span>
+      </div>
+    `).join("");
+
+    container.querySelectorAll("[data-session-id]").forEach(row => {
+      row.addEventListener("click", () => openSessionDetailDialog(row.dataset.sessionId));
+    });
+  }
+
+  function openSessionDetailDialog(sessionId) {
+    const summary = getSessionSummary(SessionManager.getById(sessionId));
+    const { session, rule, finishedGames, players } = summary;
+
+    document.getElementById("session-detail-title").textContent = `${summary.dateLabel} ${rule ? rule.name : ""}`;
+    document.getElementById("session-detail-body").innerHTML = buildSessionDetailTableHtml(finishedGames, players);
+    document.getElementById("session-detail-dialog-overlay").dataset.sessionId = sessionId;
+
+    Dialog.open("session-detail-dialog-overlay");
+  }
+
+  function buildSessionDetailTableHtml(finishedGames, players) {
+    if (finishedGames.length === 0) {
+      return `<div class="empty-state"><div class="empty-state__desc">保存済みの半荘がありません</div></div>`;
+    }
+    const headerCells = players.map(p => `<th>${UI.colorDot(p.color)}<br>${p.name}</th>`).join("");
+    const bodyRows = finishedGames.map(g => {
+      const cells = players.map(p => {
+        const r = g.results.find(res => res.playerId === p.id);
+        const tp = r ? r.totalPoint : 0;
+        return `<td class="${tp > 0 ? "is-plus" : (tp < 0 ? "is-minus" : "")}">${tp > 0 ? "+" : ""}${tp}</td>`;
+      }).join("");
+      return `<tr><td>半荘${g.gameNumber}</td>${cells}</tr>`;
+    }).join("");
+    const totalCells = players.map(p => {
+      const sum = finishedGames.reduce((s, g) => {
+        const r = g.results.find(res => res.playerId === p.id);
+        return s + (r ? r.totalPoint : 0);
+      }, 0);
+      return `<td class="${sum > 0 ? "is-plus" : (sum < 0 ? "is-minus" : "")}">${sum > 0 ? "+" : ""}${sum}</td>`;
+    }).join("");
+
+    return `
+      <div style="overflow-x:auto;">
+        <table class="session-table">
+          <thead><tr><th></th>${headerCells}</tr></thead>
+          <tbody>
+            ${bodyRows}
+            <tr class="is-total-row"><td>合計</td>${totalCells}</tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  /* ===== Phase7: 共有・バックアップ ===== */
+  function openSharePreview(sessionId) {
+    const summary = getSessionSummary(SessionManager.getById(sessionId));
+    if (summary.finishedGames.length === 0) {
+      UI.showToast("保存済みの半荘がありません", "error");
+      return;
+    }
+    UI.showLoading();
+    setTimeout(() => {
+      try {
+        const canvas = Share.generateSessionImage({
+          session: summary.session, rule: summary.rule,
+          finishedGames: summary.finishedGames, players: summary.players
+        });
+        pendingShareCanvas = canvas;
+        pendingShareBlob = null;
+        pendingShareFilename = `mahjong_${Utility.formatDateForFilename(new Date(summary.session.date))}.png`;
+        document.getElementById("share-preview-image").src = canvas.toDataURL("image/png");
+        Dialog.open("share-preview-dialog-overlay");
+        // ボタン押下時に同期的にshare()を呼べるよう、Blobは表示と並行して先に用意しておく
+        Share.canvasToBlob(canvas).then(blob => { pendingShareBlob = blob; });
+      } catch (e) {
+        UI.showToast("画像を作成できませんでした", "error");
+      } finally {
+        UI.hideLoading();
+      }
+    }, 30);
+  }
+
+  async function handleCsvImport(files) {
+    const readFile = (file) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve({ name: file.name, text: reader.result });
+      reader.onerror = () => reject(new Error(`${file.name}を読み込めませんでした`));
+      reader.readAsText(file);
+    });
+
+    try {
+      const contents = await Promise.all(files.map(readFile));
+      const gamesFile = contents.find(f => f.name.includes("games"));
+      const resultsFile = contents.find(f => f.name.includes("results"));
+      const others = contents.filter(f => f !== gamesFile && f !== resultsFile);
+
+      const outcomes = [];
+      if (gamesFile) {
+        outcomes.push(Import.importGamesWithResults(gamesFile.text, resultsFile ? resultsFile.text : ""));
+      } else if (resultsFile) {
+        outcomes.push({ ok: false, error: "results.csvはgames.csvと同時に選択してください" });
+      }
+      others.forEach(f => outcomes.push(Import.importCsvFile(f.name, f.text)));
+
+      const failed = outcomes.find(o => !o.ok);
+      if (failed) {
+        UI.showToast(`読み込めませんでした（${failed.error}）`, "error");
+        return;
+      }
+      refreshAllScreens();
+      const total = outcomes.reduce((s, o) => s + (o.count || 0), 0);
+      UI.showToast(`CSVを読み込みました（${total}件）`, "success");
+    } catch (e) {
+      UI.showToast(e.message || "CSVを読み込めませんでした", "error");
+    }
+  }
+
+  function renderBackupStatusLabel() {
+    const el = document.getElementById("backup-status-label");
+    if (!el) return;
+    const settings = Storage.getSettings();
+    if (!settings.lastBackupAt) {
+      el.textContent = "最終バックアップ：未実施";
+      el.style.color = "var(--warning)";
+      return;
+    }
+    const last = new Date(settings.lastBackupAt);
+    const days = Math.floor((Date.now() - last.getTime()) / (1000 * 60 * 60 * 24));
+    const dateLabel = last.toLocaleDateString("ja-JP");
+    if (days >= 30) {
+      el.textContent = `最終バックアップ：${dateLabel}（${days}日前）バックアップをおすすめします`;
+      el.style.color = "var(--warning)";
+    } else {
+      el.textContent = `最終バックアップ：${dateLabel}`;
+      el.style.color = "var(--text-sub)";
+    }
+  }
+
+  /* インポートやデータ削除など、Storage全体が変わった後に全画面を再描画する */
+  function refreshAllScreens() {
+    activeGameId = null;
+    pendingCalculation = null;
+    UI.applyTheme(Storage.getSettings().theme);
+    UI.renderPlayerList(document.getElementById("player-search").value);
+    UI.renderRuleList();
+    renderRecordScreen();
+    renderHomeRankingAndRecent();
+    renderStatsScreen();
+    renderHistoryScreen();
+    renderBackupStatusLabel();
+    UI.setVersionLabel();
+  }
+
+  function init() {
+    Storage.initializeIfNeeded();
+    Storage.setErrorHandler((message) => UI.showToast(message, "error"));
+    UI.setVersionLabel();
+
+    const settings = Storage.getSettings();
+    UI.applyTheme(settings.theme);
+
+    // タブ切替
+    document.querySelectorAll(".tab-item").forEach(btn => {
+      btn.addEventListener("click", () => {
+        UI.showScreen(btn.dataset.tab);
+        if (btn.dataset.tab === "players") UI.renderPlayerList(document.getElementById("player-search").value);
+        if (btn.dataset.tab === "settings") UI.renderRuleList();
+        if (btn.dataset.tab === "record") renderRecordScreen();
+        if (btn.dataset.tab === "stats") renderStatsScreen();
+        if (btn.dataset.tab === "home") renderHomeRankingAndRecent();
+        if (btn.dataset.tab === "history") renderHistoryScreen();
+      });
+    });
+    UI.showScreen(settings.initialScreen ?? "home");
+
+    // テーマ切替（ヘッダーアイコン）
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+      const current = Storage.getSettings();
+      const next = current.theme === "dark" ? "light" : "dark";
+      current.theme = next;
+      current.themeMode = "manual";
+      Storage.setSettings(current);
+      UI.applyTheme(next);
+    });
+
+    // テーマ切替（設定画面スイッチ）
+    document.getElementById("dark-mode-switch").addEventListener("change", (e) => {
+      const current = Storage.getSettings();
+      const next = e.target.checked ? "dark" : "light";
+      current.theme = next;
+      current.themeMode = "manual";
+      Storage.setSettings(current);
+      UI.applyTheme(next);
+    });
+
+    /* ===== プレイヤー：一覧・検索・お気に入り ===== */
+    buildPlayerPickerGrids();
+    UI.renderPlayerList();
+
+    document.getElementById("player-search").addEventListener("input", (e) => {
+      UI.renderPlayerList(e.target.value);
+    });
+
+    document.getElementById("player-add-btn").addEventListener("click", () => openPlayerDialog(null));
+
+    document.getElementById("player-list").addEventListener("click", (e) => {
+      const favBtn = e.target.closest(".favorite-toggle-btn");
+      if (favBtn) {
+        PlayerManager.toggleFavorite(favBtn.dataset.playerId);
+        UI.renderPlayerList(document.getElementById("player-search").value);
+        return;
+      }
+      const row = e.target.closest(".list-row[data-player-id]");
+      if (row) openPlayerDialog(row.dataset.playerId);
+    });
+
+    document.getElementById("player-dialog-cancel").addEventListener("click", () => Dialog.close("player-dialog-overlay"));
+    document.getElementById("player-dialog-save").addEventListener("click", savePlayerDialog);
+    document.getElementById("player-dialog-delete").addEventListener("click", deletePlayerFromDialog);
+
+    /* ===== ルール：一覧・追加・編集 ===== */
+    UI.renderRuleList();
+
+    document.getElementById("rule-add-btn").addEventListener("click", () => openRuleDialog(null));
+    document.getElementById("rule-list").addEventListener("click", (e) => {
+      const row = e.target.closest(".list-row[data-rule-id]");
+      if (row) openRuleDialog(row.dataset.ruleId);
+    });
+    document.querySelectorAll("#rule-gametype-segmented .segmented-btn").forEach(btn => {
+      btn.addEventListener("click", () => setRuleGameType(btn.dataset.value));
+    });
+    document.getElementById("rule-dialog-cancel").addEventListener("click", () => Dialog.close("rule-dialog-overlay"));
+    document.getElementById("rule-dialog-save").addEventListener("click", saveRuleDialog);
+    document.getElementById("rule-dialog-delete").addEventListener("click", deleteRuleFromDialog);
+    document.getElementById("rule-dialog-copy").addEventListener("click", duplicateRuleFromDialog);
+
+    /* ===== 汎用確認ダイアログ ===== */
+    document.getElementById("confirm-dialog-ok").addEventListener("click", () => Dialog.runPendingConfirm());
+    document.getElementById("confirm-dialog-cancel").addEventListener("click", () => Dialog.close("confirm-dialog-overlay"));
+
+    // オーバーレイの背景タップで閉じる
+    document.querySelectorAll(".dialog-overlay").forEach(overlay => {
+      overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) overlay.classList.remove("is-open");
+      });
+    });
+
+    /* ===== 対局開始・記録画面（Phase3） ===== */
+    document.getElementById("home-start-btn").addEventListener("click", openSessionStartDialog);
+    document.querySelectorAll("#session-gametype-segmented .segmented-btn").forEach(btn => {
+      btn.addEventListener("click", () => setSessionGameType(btn.dataset.value));
+    });
+    document.getElementById("session-start-cancel").addEventListener("click", () => Dialog.close("session-start-dialog-overlay"));
+    document.getElementById("session-start-btn").addEventListener("click", startSession);
+
+    document.getElementById("restore-dialog-resume").addEventListener("click", () => {
+      Dialog.close("restore-dialog-overlay");
+      UI.showScreen("record");
+      document.querySelectorAll(".tab-item").forEach(el => el.classList.toggle("is-active", el.dataset.tab === "record"));
+      renderRecordScreen();
+      UI.showToast("復元しました", "success");
+    });
+    document.getElementById("restore-dialog-discard").addEventListener("click", () => {
+      SessionManager.clearCurrent();
+      Dialog.close("restore-dialog-overlay");
+      renderRecordScreen();
+      UI.showToast("新規に記録を開始できます", "default");
+    });
+
+    renderRecordScreen();
+    checkRestoreOnStartup();
+
+    /* ===== Phase5: 成績 ===== */
+    document.querySelectorAll("#stats-period-segmented .segmented-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        statsPeriod = btn.dataset.period;
+        renderStatsScreen();
+      });
+    });
+    document.getElementById("player-detail-close").addEventListener("click", () => Dialog.close("player-detail-dialog-overlay"));
+    renderHomeRankingAndRecent();
+    renderStatsScreen();
+
+    /* ===== Phase6: 履歴編集 ===== */
+    document.getElementById("history-search").addEventListener("input", (e) => {
+      historySearchText = e.target.value;
+      renderHistoryScreen();
+    });
+    document.querySelectorAll("#history-sort-segmented .segmented-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        historySortOrder = btn.dataset.sort;
+        renderHistoryScreen();
+      });
+    });
+    document.getElementById("session-detail-close").addEventListener("click", () => Dialog.close("session-detail-dialog-overlay"));
+    document.getElementById("session-detail-edit").addEventListener("click", () => {
+      const sessionId = document.getElementById("session-detail-dialog-overlay").dataset.sessionId;
+      SessionManager.setCurrent(sessionId);
+      activeGameId = null;
+      pendingCalculation = null;
+      Dialog.close("session-detail-dialog-overlay");
+      UI.showScreen("record");
+      document.querySelectorAll(".tab-item").forEach(el => el.classList.toggle("is-active", el.dataset.tab === "record"));
+      renderRecordScreen();
+      UI.showToast("この対局を編集できます。半荘を選んで持ち点を修正してください", "default");
+    });
+    document.getElementById("session-detail-delete").addEventListener("click", () => {
+      const sessionId = document.getElementById("session-detail-dialog-overlay").dataset.sessionId;
+      Dialog.confirm("この対局を削除しますか？", "履歴・成績集計から除外されます。", () => {
+        SessionManager.remove(sessionId);
+        Dialog.close("session-detail-dialog-overlay");
+        renderHistoryScreen();
+        renderHomeRankingAndRecent();
+        renderStatsScreen();
+        UI.showToast("削除しました", "success");
+      });
+    });
+    document.getElementById("session-detail-share").addEventListener("click", () => {
+      const sessionId = document.getElementById("session-detail-dialog-overlay").dataset.sessionId;
+      openSharePreview(sessionId);
+    });
+    renderHistoryScreen();
+
+    /* ===== Phase7: 共有・バックアップ ===== */
+    document.getElementById("share-preview-cancel").addEventListener("click", () => Dialog.close("share-preview-dialog-overlay"));
+    document.getElementById("share-preview-share").addEventListener("click", () => {
+      if (!pendingShareCanvas) return;
+
+      const doDownloadFallback = (blob) => {
+        Utility.downloadBlob(pendingShareFilename, blob);
+        Dialog.close("share-preview-dialog-overlay");
+        UI.showToast("画像を保存しました。LINEアプリを開き、トークに画像を添付して送信してください", "success");
+      };
+
+      const runShare = (blob) => {
+        const file = new File([blob], pendingShareFilename, { type: "image/png" });
+        if (!Share.canShareFiles(file)) {
+          // この端末・ブラウザは画像の共有シートに対応していないため、保存して手動送信してもらう
+          doDownloadFallback(blob);
+          return;
+        }
+        // ここでは（asyncを挟まず）クリックイベントの直後に同期的にshare()を呼ぶ。
+        // 間にawaitを挟むとブラウザが「ユーザー操作」とみなさず共有シートが開かないことがあるため。
+        navigator.share({ files: [file], title: pendingShareFilename })
+          .then(() => {
+            Dialog.close("share-preview-dialog-overlay");
+            UI.showToast("共有しました", "success");
+          })
+          .catch((err) => {
+            if (err && err.name === "AbortError") return; // ユーザーが共有シートをキャンセルしただけ
+            doDownloadFallback(blob);
+          });
+      };
+
+      if (pendingShareBlob) {
+        runShare(pendingShareBlob);
+      } else {
+        // 稀にBlob生成が間に合っていない場合のみ、この場で生成してから共有する
+        Share.canvasToBlob(pendingShareCanvas).then(blob => {
+          pendingShareBlob = blob;
+          runShare(blob);
+        });
+      }
+    });
+    document.getElementById("share-preview-save").addEventListener("click", () => {
+      if (!pendingShareCanvas) return;
+      const save = (blob) => {
+        if (!blob) { UI.showToast("画像を作成できませんでした", "error"); return; }
+        Utility.downloadBlob(pendingShareFilename, blob);
+        UI.showToast("画像を保存しました", "success");
+      };
+      if (pendingShareBlob) save(pendingShareBlob);
+      else Share.canvasToBlob(pendingShareCanvas).then(save);
+    });
+
+    renderBackupStatusLabel();
+
+    document.getElementById("csv-export-btn").addEventListener("click", () => {
+      UI.showLoading();
+      setTimeout(() => {
+        try {
+          const count = Export.exportAllCsv();
+          UI.showToast(`CSVを書き出しました（${count}ファイル）`, "success");
+        } catch (e) {
+          UI.showToast("CSVを書き出せませんでした", "error");
+        } finally {
+          UI.hideLoading();
+        }
+      }, 30);
+    });
+
+    document.getElementById("csv-import-btn").addEventListener("click", () => {
+      document.getElementById("csv-import-input").click();
+    });
+    document.getElementById("csv-import-input").addEventListener("change", async (e) => {
+      const files = Array.from(e.target.files || []);
+      e.target.value = "";
+      if (files.length === 0) return;
+      Dialog.confirm("CSVを読み込みますか？", "選択したファイルの種類のデータは、現在の内容と置き換えられます。", async () => {
+        UI.showLoading();
+        try {
+          await handleCsvImport(files);
+        } finally {
+          UI.hideLoading();
+        }
+      }, { confirmLabel: "読み込む", danger: false });
+    });
+
+    document.getElementById("json-export-btn").addEventListener("click", () => {
+      UI.showLoading();
+      setTimeout(() => {
+        try {
+          Export.exportJsonBackup();
+          renderBackupStatusLabel();
+          UI.showToast("バックアップを保存しました", "success");
+        } catch (e) {
+          UI.showToast("バックアップできませんでした", "error");
+        } finally {
+          UI.hideLoading();
+        }
+      }, 30);
+    });
+
+    document.getElementById("json-import-btn").addEventListener("click", () => {
+      document.getElementById("json-import-input").click();
+    });
+    document.getElementById("json-import-input").addEventListener("change", (e) => {
+      const file = e.target.files && e.target.files[0];
+      e.target.value = "";
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        let obj;
+        try {
+          obj = JSON.parse(reader.result);
+        } catch (err) {
+          UI.showToast("復元できませんでした（JSON形式が正しくありません）", "error");
+          return;
+        }
+        const check = Import.validateJsonBackup(obj);
+        if (!check.ok) {
+          UI.showToast(`復元できませんでした（${check.error}）`, "error");
+          return;
+        }
+        Dialog.confirm("バックアップを復元しますか？", "現在のすべてのデータが、このファイルの内容で置き換えられます。", () => {
+          UI.showLoading();
+          setTimeout(() => {
+            try {
+              const result = Import.importJsonBackup(obj);
+              if (result.ok) {
+                refreshAllScreens();
+                UI.showToast("復元しました", "success");
+              } else {
+                UI.showToast(`復元できませんでした（${result.error}）`, "error");
+              }
+            } finally {
+              UI.hideLoading();
+            }
+          }, 30);
+        }, { confirmLabel: "復元する", danger: false });
+      };
+      reader.onerror = () => UI.showToast("ファイルを読み込めませんでした", "error");
+      reader.readAsText(file);
+    });
+
+    document.getElementById("data-delete-btn").addEventListener("click", () => {
+      Dialog.confirm("すべてのデータを削除しますか？", "プレイヤー・ルール・対局履歴・設定がすべて削除されます。この操作は元に戻せません。", () => {
+        [Storage.KEYS.players, Storage.KEYS.rules, Storage.KEYS.sessions, Storage.KEYS.games].forEach(key => Storage.set(key, []));
+        Storage.set(Storage.KEYS.settings, Models.createDefaultSettings());
+        refreshAllScreens();
+        UI.showToast("すべてのデータを削除しました", "success");
+      });
+    });
+
+    UI.showToast("起動しました", "success");
+  }
+
+  return { init };
+})();
+
+/* ============================================================
+   予期しないエラーへの対応（第10章21節）
+   個別の try/catch で拾いきれない例外はここで捕捉し、
+   アプリを壊さずトーストで再読み込みを促す。
+   ============================================================ */
+window.addEventListener("error", (event) => {
+  console.error("[Unhandled Error]", event.error || event.message);
+  try {
+    UI.showToast("エラーが発生しました。再読み込みしてください", "error");
+  } catch (e) { /* UIすら初期化できていない場合は何もしない */ }
+});
+window.addEventListener("unhandledrejection", (event) => {
+  console.error("[Unhandled Rejection]", event.reason);
+  try {
+    UI.showToast("エラーが発生しました。再読み込みしてください", "error");
+  } catch (e) { /* noop */ }
+});
+
+document.addEventListener("DOMContentLoaded", Controller.init);
+
+/* ============================================================
+   PWA: Service Worker登録（第7章15節）
+   file://で開いた場合やSW非対応環境ではエラーにせず静かにスキップする
+   ============================================================ */
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch((err) => {
+      console.warn("Service Worker登録に失敗しました:", err);
+    });
+  });
+}
+</script>
+</body>
+</html>
