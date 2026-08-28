@@ -934,8 +934,9 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: var(--gap-card-gap);
 }
-.record-header-card__info { font-size: 14px; color: var(--text-sub); }
-.record-header-card__title { font-size: 16px; font-weight: 700; margin-bottom: 2px; }
+.record-header-card__info { font-size: 15px; font-weight: 600; color: var(--text); }
+.record-header-card__title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+.record-header-card__edit-grid { display: grid; grid-template-columns: max-content max-content; align-items: center; column-gap: 8px; row-gap: 6px; }
 
 .participant-row { display: flex; gap: 10px; margin-bottom: var(--gap-card-gap); flex-wrap: wrap; }
 .participant-chip {
@@ -3630,6 +3631,7 @@ const Models = {
       ruleId: ruleId ?? null,
       playerIds,
       chips: {}, // playerId -> チップ枚数（対局終了時に精算、半荘ごとではなくセッション単位）
+      venueFee: 0, // 場代（セッション全体の合計額。参加人数で割って各プレイヤーの合計から差し引く）
       createdAt: Utility.nowISO(),
       updatedAt: Utility.nowISO(),
       deleted: false
@@ -4393,7 +4395,18 @@ const SessionManager = (() => {
     return { ok: true, session: target };
   }
 
-  return { getAll, getAllActive, getById, create, getCurrent, setCurrent, clearCurrent, remove, setChips, setDate, setRuleId };
+  /* 場代（セッション全体の合計額）を設定する */
+  function setVenueFee(id, amount) {
+    const sessions = Storage.getSessions();
+    const target = sessions.find(s => s.id === id);
+    if (!target) return { ok: false, error: t("error_session_not_found") };
+    target.venueFee = Math.max(0, Number(amount) || 0);
+    target.updatedAt = Utility.nowISO();
+    Storage.set(Storage.KEYS.sessions, sessions);
+    return { ok: true, session: target };
+  }
+
+  return { getAll, getAllActive, getById, create, getCurrent, setCurrent, clearCurrent, remove, setChips, setDate, setRuleId, setVenueFee };
 })();
 
 /* ---------- GameManager：半荘データのCRUD（第3章 準拠） ---------- */
@@ -6240,6 +6253,8 @@ const Share = (() => {
     players.forEach(p => { subtotalsByPlayer[p.id] = halfGameTotalsByPlayer[p.id] + chipPointOf(p.id); });
     const totalsByPlayer = {}; // 合計（小計 × レート）
     players.forEach(p => { totalsByPlayer[p.id] = subtotalsByPlayer[p.id] * rate; });
+    const showVenueFee = !!(session.venueFee > 0); // 場代が設定されている場合のみ「合計（場代込）」を追加表示する
+    const venueFeePerPlayer = showVenueFee && players.length > 0 ? session.venueFee / players.length : 0;
 
     // 半荘の列幅は、行をまたいでも縦の位置が揃うよう、常に1行分（GAMES_PER_BLOCK列）を基準にした固定幅にする。
     // 全体が1行に収まる場合（blocks.length === 1）だけは、実際の列数に合わせて幅いっぱいに広げる。
@@ -6254,6 +6269,12 @@ const Share = (() => {
       y += 58;
       if (rule) {
         drawText(ctx, formatRuleGameTypeSummary(rule, players.length), marginX, y, { font: "32px sans-serif", color: "#6C757D" });
+        if (showVenueFee) {
+          const perPlayerRounded = Math.round(venueFeePerPlayer);
+          drawText(ctx, `場代 ${session.venueFee.toLocaleString()}pt（一人 ${perPlayerRounded.toLocaleString()}pt）`, width - marginX, y, {
+            font: "26px sans-serif", color: "#6C757D", align: "right"
+          });
+        }
         y += 42;
       }
 
@@ -6295,6 +6316,10 @@ const Share = (() => {
           : Math.floor((width - marginX * 2 - nameColWidth - reservedForTotals) / Math.max(block.length, 1));
         // チップ・小計・合計は、右端に揃えるのではなく、半荘の列（固定幅）の続きとして配置する
         const totalsColStartX = marginX + nameColWidth + gameColWidth * block.length;
+        // 場代が設定されている場合、最終ブロックの行だけ「合計（場代込）」の分だけ縦に少し広げる
+        const effectiveRowHeight = (isLastBlock && showVenueFee) ? rowHeight + 34 : rowHeight;
+        // 場代が設定されている場合、「合計」見出しの下に「(場代込)」の1行を追加する分の高さ
+        const headerExtraHeight = (isLastBlock && showVenueFee) ? 26 : 0;
 
         if (isLastBlock) {
           // 小計・合計は他の半荘ごとのポイントと区別できるよう背景色を敷く。
@@ -6305,7 +6330,7 @@ const Share = (() => {
           const valueFontSize = 41; // 合計欄の数値（最大フォント）のサイズ
           const topPad = headerFontSize * 0.8 + headerFontSize * 0.5; // 文字の上端 + フォント半分の余白
           const bottomPad = valueFontSize * 0.25 + valueFontSize * 0.5; // 文字の下端 + フォント半分の余白
-          const lastPlayerRowY = y + 20 + rowHeight * 0.5 + (players.length - 1) * rowHeight;
+          const lastPlayerRowY = y + 20 + headerExtraHeight + effectiveRowHeight * 0.5 + (players.length - 1) * effectiveRowHeight;
           const rectTop = y - topPad;
           const rectBottom = lastPlayerRowY + bottomPad;
           const blockHeight = rectBottom - rectTop;
@@ -6332,8 +6357,11 @@ const Share = (() => {
           drawText(ctx, "小計", hx + totalColWidth / 2, y, { font: "28px sans-serif", color: "#6C757D", align: "center" });
           hx += totalColWidth;
           drawText(ctx, "合計", hx + totalColWidth / 2, y, { font: "bold 30px sans-serif", align: "center" });
+          if (showVenueFee) {
+            drawText(ctx, "(場代込)", hx + totalColWidth / 2, y + 27, { font: "22px sans-serif", color: "#6C757D", align: "center" });
+          }
         }
-        y += 20;
+        y += 20 + headerExtraHeight;
 
         ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(width - marginX, y); ctx.stroke();
         y += rowHeight * 0.5;
@@ -6380,8 +6408,14 @@ const Share = (() => {
             drawText(ctx, `${total > 0 ? "+" : ""}${total}`, cx + totalColWidth / 2, y, {
               font: "bold 41px sans-serif", color: total > 0 ? "#007AFF" : (total < 0 ? "#DC3545" : "#212529"), align: "center"
             });
+            if (showVenueFee) {
+              const totalWithFee = Math.round(total - venueFeePerPlayer);
+              drawText(ctx, `(${totalWithFee > 0 ? "+" : ""}${totalWithFee})`, cx + totalColWidth / 2, y + 32, {
+                font: "22px sans-serif", color: totalWithFee > 0 ? "#007AFF" : (totalWithFee < 0 ? "#DC3545" : "#6C757D"), align: "center"
+              });
+            }
           }
-          y += rowHeight;
+          y += effectiveRowHeight;
         });
 
         if (!isLastBlock) y += blockGap;
@@ -8247,19 +8281,18 @@ const Controller = (() => {
 
     container.innerHTML = `
       <div class="card record-header-card">
-        <div>
-          <div class="record-header-card__title" style="display:flex; align-items:center; gap:8px;">
-            <span>${dateLabel}</span>
-            <button type="button" id="record-date-edit-btn" style="font-size:11px; padding:3px 8px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-sub); cursor:pointer; font-weight:400;">${t("title_edit_date")}</button>
-          </div>
-          <div class="record-header-card__info" style="display:flex; align-items:center; gap:8px; margin-bottom:2px;">
-            <span>${rule ? rule.name : ""}</span>
-            <button type="button" id="record-rule-change-btn" style="font-size:11px; padding:3px 8px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-sub); cursor:pointer;">${t("title_change_rule")}</button>
-          </div>
-          <div class="record-header-card__info" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
-            <span>${tf("unit_players", players.length)} / ${rule && rule.gameType === "yonma" ? t("gametype_yonma") : t("gametype_sanma")}</span>
-            ${finishedGamesCount > 0 ? `<button type="button" id="record-session-progress-btn" style="font-size:12px; padding:5px 10px; border-radius:8px; border:1px solid var(--primary); background:transparent; color:var(--primary); cursor:pointer; font-weight:600; flex-shrink:0;">${t("btn_session_progress")}</button>` : ""}
-          </div>
+        <div class="record-header-card__edit-grid">
+          <span class="record-header-card__title">${dateLabel}</span>
+          <button type="button" id="record-date-edit-btn" style="font-size:11px; padding:3px 8px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-sub); cursor:pointer; font-weight:400; justify-self:start;">${t("title_edit_date")}</button>
+
+          <span class="record-header-card__info">${rule ? rule.name : ""}</span>
+          <button type="button" id="record-rule-change-btn" style="font-size:11px; padding:3px 8px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-sub); cursor:pointer; justify-self:start;">${t("title_change_rule")}</button>
+
+          <span class="record-header-card__info">${tf("unit_players", players.length)}</span>
+          <span></span>
+
+          <span class="record-header-card__info">場代　${(session.venueFee || 0).toLocaleString()}pt</span>
+          <button type="button" id="record-venue-fee-btn" style="font-size:11px; padding:3px 8px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-sub); cursor:pointer; justify-self:start;">編集</button>
         </div>
       </div>
 
@@ -8316,6 +8349,7 @@ const Controller = (() => {
         <div id="calc-results-container" style="margin-top:12px;">${resultsCardHtml}</div>
 
         <button class="btn ${isCalculated ? "btn-primary" : "btn-secondary"}" id="game-save-btn" style="margin-top:12px;" ${canSave ? "" : "disabled"}>${t("btn_save")}</button>
+        ${finishedGamesCount > 0 ? `<button type="button" id="record-session-progress-btn" style="display:block; width:100%; margin-top:10px; padding:12px; border-radius:10px; border:none; background:#5AC8FA; color:#fff; font-size:15px; font-weight:600; cursor:pointer;">${t("btn_session_progress")}</button>` : ""}
         <button class="btn btn-danger" id="game-close-btn" style="margin-top:10px;">${t("btn_close")}</button>
       ` : ""}
     `;
@@ -8354,6 +8388,7 @@ const Controller = (() => {
 
     document.getElementById("record-date-edit-btn").addEventListener("click", () => openDateEditDialog(session.id));
     document.getElementById("record-rule-change-btn").addEventListener("click", () => openRuleChangeDialog(session.id));
+    document.getElementById("record-venue-fee-btn").addEventListener("click", () => openVenueFeeEditDialog(session.id));
     const progressBtn = document.getElementById("record-session-progress-btn");
     if (progressBtn) progressBtn.addEventListener("click", () => openSessionDetailDialog(session.id, { hideEditDelete: true }));
 
@@ -10065,6 +10100,7 @@ const Controller = (() => {
 
   /* ===== チュートリアル（実機スクリーンショットのスライドショー） =====
      tutorial/ フォルダに保存した、実際のアプリ画面を切り出し・枠線で強調した画像を使う */
+
   const TUTORIAL_CONTENT = {
     record: {
       title: "対局記録の使い方",
@@ -10310,6 +10346,40 @@ const Controller = (() => {
   }
 
   /* 対局の日付を後から修正するダイアログ。時刻部分は変更せず日付のみ差し替える */
+  /* 場代（セッション全体の合計額）を編集するダイアログ。人数で割った金額が共有画像の「合計（場代込）」に反映される */
+  function openVenueFeeEditDialog(sessionId, onDone) {
+    const session = SessionManager.getById(sessionId);
+    if (!session) return;
+    const overlay = document.createElement("div");
+    overlay.className = "dialog-overlay is-open";
+    overlay.innerHTML = `
+      <div class="dialog-box">
+        <div class="dialog-title">場代を編集</div>
+        <div class="dialog-body">
+          <p style="font-size:12px; color:var(--text-sub); margin-bottom:10px;">対局全体でかかった場代の合計額を入力してください。参加人数で均等に割った金額が、各プレイヤーの合計から差し引かれて共有画像に表示されます。</p>
+          <input type="number" id="venue-fee-input" inputmode="numeric" placeholder="例：4000" value="${session.venueFee || 0}" style="width:100%; height:44px; padding:0 12px; border-radius:8px; border:1px solid var(--border); font-size:16px; background:var(--card); color:var(--text);">
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" data-action="cancel">キャンセル</button>
+          <button class="btn btn-primary" id="venue-fee-save-btn">保存</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => {
+      overlay.remove();
+      if (onDone) onDone();
+    });
+    overlay.querySelector("#venue-fee-save-btn").addEventListener("click", () => {
+      const value = Number(document.getElementById("venue-fee-input").value) || 0;
+      SessionManager.setVenueFee(sessionId, value);
+      overlay.remove();
+      renderRecordScreen();
+      UI.showToast("場代を保存しました", "success");
+      if (onDone) onDone();
+    });
+  }
+
   function openDateEditDialog(sessionId) {
     const session = SessionManager.getById(sessionId);
     if (!session) return;
@@ -10565,7 +10635,7 @@ const Controller = (() => {
     if (rule && rule.chipEnabled) {
       openChipInputDialog();
     } else {
-      openSessionEndChoiceDialog();
+      openVenueFeePromptDialog();
     }
   }
 
@@ -10613,6 +10683,37 @@ const Controller = (() => {
 
   function openSessionEndChoiceDialog() {
     Dialog.open("session-end-choice-dialog-overlay");
+  }
+
+  /* 対局終了の直前に「場代を入力しますか？」を確認する。
+     「入力する」を選ぶとその場で場代編集ダイアログを開き、保存後（またはキャンセル後）に
+     通常の終了確認（session-end-choice-dialog）へ進む。「後で入力する」はそのままスキップする */
+  function openVenueFeePromptDialog() {
+    if (!sessionEndContext) { openSessionEndChoiceDialog(); return; }
+    const { session } = sessionEndContext;
+    const overlay = document.createElement("div");
+    overlay.className = "dialog-overlay is-open";
+    overlay.innerHTML = `
+      <div class="dialog-box">
+        <div class="dialog-title">場代を入力しますか？</div>
+        <div class="dialog-body">
+          <p style="font-size:13px; line-height:1.7;">対局全体でかかった場代を入力すると、共有画像の「合計」の下に「(場代込)」の金額が表示されます。後からでも入力・変更できます。</p>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" id="venue-fee-prompt-later-btn">後で入力する</button>
+          <button class="btn btn-primary" id="venue-fee-prompt-now-btn">入力する</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector("#venue-fee-prompt-later-btn").addEventListener("click", () => {
+      overlay.remove();
+      openSessionEndChoiceDialog();
+    });
+    overlay.querySelector("#venue-fee-prompt-now-btn").addEventListener("click", () => {
+      overlay.remove();
+      openVenueFeeEditDialog(session.id, () => openSessionEndChoiceDialog());
+    });
   }
 
   function finalizeSessionEnd(shouldShare) {
@@ -13593,7 +13694,7 @@ const Controller = (() => {
       }
       SessionManager.setChips(session.id, chipsMap);
       Dialog.close("chip-input-dialog-overlay");
-      openSessionEndChoiceDialog();
+      openVenueFeePromptDialog();
     });
     document.getElementById("session-end-close").addEventListener("click", () => finalizeSessionEnd(false));
     document.getElementById("session-end-share").addEventListener("click", () => finalizeSessionEnd(true));
