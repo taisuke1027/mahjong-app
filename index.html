@@ -3835,7 +3835,10 @@ const UI = (() => {
     const color = isPlayerObj ? playerOrColor.color : playerOrColor;
     const photo = isPlayerObj ? playerOrColor.photo : null;
     if (photo) {
-      return `<span style="display:inline-block; width:16px; height:16px; border-radius:50%; background-image:url('${photo}'); background-size:cover; background-position:center; margin-right:4px; vertical-align:middle; border:1px solid ${color};"></span>`;
+      return `<span style="display:inline-block; width:16px; height:16px; border-radius:50%; background-image:url('${photo}'); background-size:cover; background-position:center; margin-right:4px; vertical-align:middle; border:1px solid ${color || "#ADB5BD"};"></span>`;
+    }
+    if (!color) {
+      return `<span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:repeating-linear-gradient(45deg, #fff, #fff 2px, #ADB5BD 2px, #ADB5BD 3px); border:1px solid #ADB5BD; margin-right:4px; vertical-align:middle;"></span>`;
     }
     return `<span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${color}; margin-right:4px; vertical-align:middle;"></span>`;
   }
@@ -3964,6 +3967,13 @@ const PLAYER_COLOR_CHOICES = [
   { name: "茶色",     value: "#8B5E3C" },
   { name: "グレー",   value: "#6C757D" }
 ];
+// 「カラーなし」のプレイヤーに対局記録時に自動で割り当てる色（1人目=青, 2人目=赤, 3人目=緑, 4人目=黄）
+const AUTO_ASSIGN_COLORS = PLAYER_COLOR_CHOICES.slice(0, 4).map(c => c.value);
+/* 対局の参加プレイヤー一覧に対し、colorが未設定（カラーなし）のプレイヤーへ、
+   セッション内の並び順に応じた色を自動的に割り当てた配列を返す（元のプレイヤーオブジェクトは変更しない） */
+function resolvePlayersForSessionDisplay(sessionPlayers) {
+  return sessionPlayers.map((p, i) => p.color ? p : { ...p, color: AUTO_ASSIGN_COLORS[i % AUTO_ASSIGN_COLORS.length] });
+}
 const MAX_PLAYER_COUNT = 50;
 
 /* 役満の選択肢（標準リスト）。ルールごとに登録された任意の役満は別途 rule.customYakumanList に保持され、
@@ -6269,13 +6279,14 @@ const Share = (() => {
       y += 58;
       if (rule) {
         drawText(ctx, formatRuleGameTypeSummary(rule, players.length), marginX, y, { font: "32px sans-serif", color: "#6C757D" });
-        if (showVenueFee) {
-          const perPlayerRounded = Math.round(venueFeePerPlayer);
-          drawText(ctx, `場代 ${session.venueFee.toLocaleString()}pt（一人 ${perPlayerRounded.toLocaleString()}pt）`, width - marginX, y, {
-            font: "26px sans-serif", color: "#6C757D", align: "right"
-          });
-        }
         y += 42;
+      }
+      if (showVenueFee) {
+        const perPlayerRounded = Math.round(venueFeePerPlayer);
+        drawText(ctx, `場代 ${session.venueFee.toLocaleString()}pt（一人 ${perPlayerRounded.toLocaleString()}pt）`, marginX, y, {
+          font: "26px sans-serif", color: "#6C757D"
+        });
+        y += 38;
       }
 
       ctx.strokeStyle = "#DEE2E6"; ctx.lineWidth = 2;
@@ -7212,9 +7223,10 @@ const Controller = (() => {
   /* ===== プレイヤーダイアログ ===== */
   function buildPlayerPickerGrids() {
     const colorGrid = document.getElementById("player-color-grid");
-    colorGrid.innerHTML = PLAYER_COLOR_CHOICES.map(c =>
-      `<button type="button" class="color-choice" data-color="${c.value}" title="${c.name}" style="background:${c.value}"></button>`
-    ).join("");
+    colorGrid.innerHTML = `<button type="button" class="color-choice" data-color="" title="カラーなし" style="background:repeating-linear-gradient(45deg, var(--background), var(--background) 4px, var(--border) 4px, var(--border) 5px);">🚫</button>` +
+      PLAYER_COLOR_CHOICES.map(c =>
+        `<button type="button" class="color-choice" data-color="${c.value}" title="${c.name}" style="background:${c.value}"></button>`
+      ).join("");
     colorGrid.querySelectorAll(".color-choice").forEach(btn => {
       btn.addEventListener("click", () => {
         selectedPlayerColor = btn.dataset.color;
@@ -7277,7 +7289,7 @@ const Controller = (() => {
     document.getElementById("player-name-input").value = player?.name ?? "";
     document.getElementById("player-favorite-input").checked = player?.favorite ?? false;
     document.getElementById("player-memo-input").value = player?.memo ?? "";
-    selectedPlayerColor = player?.color ?? PLAYER_COLOR_CHOICES[0].value;
+    selectedPlayerColor = isEdit ? (player?.color ?? "") : PLAYER_COLOR_CHOICES[0].value;
     refreshPlayerPickerSelection();
     pendingPlayerPhoto = player?.photo ?? null;
     updatePlayerPhotoPreview();
@@ -8188,7 +8200,7 @@ const Controller = (() => {
     }
 
     const rule = RuleManager.getById(session.ruleId);
-    const players = session.playerIds.map(id => PlayerManager.getById(id)).filter(Boolean);
+    const players = resolvePlayersForSessionDisplay(session.playerIds.map(id => PlayerManager.getById(id)).filter(Boolean));
     const games = GameManager.getBySession(session.id);
     if (!activeGameId || !games.find(g => g.id === activeGameId)) {
       activeGameId = games[games.length - 1]?.id ?? null;
@@ -8287,9 +8299,6 @@ const Controller = (() => {
 
           <span class="record-header-card__info">${rule ? rule.name : ""}</span>
           <button type="button" id="record-rule-change-btn" style="font-size:11px; padding:3px 8px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-sub); cursor:pointer; justify-self:start;">${t("title_change_rule")}</button>
-
-          <span class="record-header-card__info">${tf("unit_players", players.length)}</span>
-          <span></span>
 
           <span class="record-header-card__info">場代　${(session.venueFee || 0).toLocaleString()}pt</span>
           <button type="button" id="record-venue-fee-btn" style="font-size:11px; padding:3px 8px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-sub); cursor:pointer; justify-self:start;">編集</button>
@@ -10009,7 +10018,7 @@ const Controller = (() => {
   function getSessionSummary(session) {
     const rule = RuleManager.getById(session.ruleId);
     const finishedGames = GameManager.getBySession(session.id).filter(g => g.isFinished);
-    const players = session.playerIds.map(id => PlayerManager.getById(id)).filter(Boolean);
+    const players = resolvePlayersForSessionDisplay(session.playerIds.map(id => PlayerManager.getById(id)).filter(Boolean));
     // 検索対象：日付文字列 と 参加プレイヤー名
     const dateLabel = new Date(session.date).toLocaleDateString("ja-JP");
     // 実際に保存済みの半荘（results配列の人数）から種別を判定する。session.playerIds.lengthに頼らないことで、
