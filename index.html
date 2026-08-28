@@ -10251,6 +10251,7 @@ const Controller = (() => {
     document.getElementById("session-detail-title").innerHTML = `
       <div>${summary.dateLabel}${hideEditDelete ? `　<span style="font-size:13px; font-weight:400; color:var(--text-sub);">（${t("label_in_progress")}）</span>` : ""}</div>
       ${rule ? `<div style="font-size:14px; font-weight:400; color:var(--text-sub); margin-top:2px;">${UI.escapeHtml(formatRuleGameTypeSummary(rule, players.length))}</div>` : ""}
+      ${session.venueFee > 0 ? `<div style="font-size:13px; font-weight:400; color:var(--text-sub); margin-top:2px;">場代　${session.venueFee.toLocaleString()}pt</div>` : ""}
     `;
     document.getElementById("session-detail-body").innerHTML = `
       ${finishedGames.length > 0 ? `<canvas id="session-trend-chart" style="width:100%; height:220px; display:block; margin-bottom:16px;"></canvas>` : `<p style="font-size:13px; color:var(--text-sub); text-align:center; padding:20px 0;">${t("msg_no_finished_games_yet")}</p>`}
@@ -10629,10 +10630,28 @@ const Controller = (() => {
       return `<td class="${subtotal > 0 ? "is-plus" : (subtotal < 0 ? "is-minus" : "")}">${subtotal > 0 ? "+" : ""}${subtotal}</td>`;
     }).join("");
 
+    const totalsByPlayer = {};
+    players.forEach(p => { totalsByPlayer[p.id] = subtotalOf(p) * rate; });
     const totalCells = players.map(p => {
-      const total = subtotalOf(p) * rate;
+      const total = totalsByPlayer[p.id];
       return `<td class="${total > 0 ? "is-plus" : (total < 0 ? "is-minus" : "")}">${total > 0 ? "+" : ""}${total}</td>`;
     }).join("");
+
+    // 場代（設定されている場合のみ）：人数で割った端数は「合計」が最も高いプレイヤーが負担する（共有画像と同じロジック）
+    const showVenueFee = !!(session.venueFee > 0);
+    let venueFeeRowHtml = "";
+    if (showVenueFee) {
+      const baseShare = Math.floor(session.venueFee / players.length);
+      const remainder = session.venueFee - baseShare * players.length;
+      let topPlayerId = null, topTotal = -Infinity;
+      players.forEach(p => { if (totalsByPlayer[p.id] > topTotal) { topTotal = totalsByPlayer[p.id]; topPlayerId = p.id; } });
+      const feeWithFeeCells = players.map(p => {
+        const share = baseShare + (p.id === topPlayerId ? remainder : 0);
+        const totalWithFee = Math.round(totalsByPlayer[p.id] - share);
+        return `<td class="${totalWithFee > 0 ? "is-plus" : (totalWithFee < 0 ? "is-minus" : "")}" style="font-size:12px;">(${totalWithFee > 0 ? "+" : ""}${totalWithFee})</td>`;
+      }).join("");
+      venueFeeRowHtml = `<tr class="is-total-row"><td style="font-size:12px;">${t("label_total")}<br>(場代込)</td>${feeWithFeeCells}</tr>`;
+    }
 
     return `
       ${legendHtml}
@@ -10644,6 +10663,7 @@ const Controller = (() => {
             ${chipRowHtml}
             <tr class="is-total-row is-subtotal-row"><td>${t("label_subtotal")}</td>${subtotalCells}</tr>
             <tr class="is-total-row is-grand-total-row"><td>${t("label_total")}</td>${totalCells}</tr>
+            ${venueFeeRowHtml}
           </tbody>
         </table>
       </div>
