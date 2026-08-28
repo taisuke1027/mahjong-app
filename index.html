@@ -6264,7 +6264,21 @@ const Share = (() => {
     const totalsByPlayer = {}; // 合計（小計 × レート）
     players.forEach(p => { totalsByPlayer[p.id] = subtotalsByPlayer[p.id] * rate; });
     const showVenueFee = !!(session.venueFee > 0); // 場代が設定されている場合のみ「合計（場代込）」を追加表示する
-    const venueFeePerPlayer = showVenueFee && players.length > 0 ? session.venueFee / players.length : 0;
+    // 場代は人数で均等に割った上で切り捨て、割り切れずに余った分は「合計」が最も高いプレイヤーが負担する
+    // （合計トップ以外は全員同額を負担し、全員の負担額の合計が必ず場代の合計と一致するようにする）
+    const venueFeeBaseShare = showVenueFee && players.length > 0 ? Math.floor(session.venueFee / players.length) : 0;
+    const venueFeeRemainder = showVenueFee ? session.venueFee - venueFeeBaseShare * players.length : 0;
+    let venueFeeTopPlayerId = null;
+    if (showVenueFee && players.length > 0) {
+      let topTotal = -Infinity;
+      players.forEach(p => {
+        if (totalsByPlayer[p.id] > topTotal) { topTotal = totalsByPlayer[p.id]; venueFeeTopPlayerId = p.id; }
+      });
+    }
+    const venueFeeSharesByPlayer = {}; // プレイヤーごとの実際の場代負担額（整数、合計が必ずsession.venueFeeと一致する）
+    players.forEach(p => {
+      venueFeeSharesByPlayer[p.id] = venueFeeBaseShare + (p.id === venueFeeTopPlayerId ? venueFeeRemainder : 0);
+    });
 
     // 半荘の列幅は、行をまたいでも縦の位置が揃うよう、常に1行分（GAMES_PER_BLOCK列）を基準にした固定幅にする。
     // 全体が1行に収まる場合（blocks.length === 1）だけは、実際の列数に合わせて幅いっぱいに広げる。
@@ -6282,8 +6296,7 @@ const Share = (() => {
         y += 42;
       }
       if (showVenueFee) {
-        const perPlayerRounded = Math.round(venueFeePerPlayer);
-        drawText(ctx, `場代 ${session.venueFee.toLocaleString()}pt（一人 ${perPlayerRounded.toLocaleString()}pt）`, marginX, y, {
+        drawText(ctx, `場代 ${session.venueFee.toLocaleString()}pt（一人 ${venueFeeBaseShare.toLocaleString()}pt${venueFeeRemainder > 0 ? `、合計トップは+${venueFeeRemainder}pt` : ""}）`, marginX, y, {
           font: "26px sans-serif", color: "#6C757D"
         });
         y += 38;
@@ -6420,7 +6433,7 @@ const Share = (() => {
               font: "bold 41px sans-serif", color: total > 0 ? "#007AFF" : (total < 0 ? "#DC3545" : "#212529"), align: "center"
             });
             if (showVenueFee) {
-              const totalWithFee = Math.round(total - venueFeePerPlayer);
+              const totalWithFee = Math.round(total - venueFeeSharesByPlayer[p.id]);
               drawText(ctx, `(${totalWithFee > 0 ? "+" : ""}${totalWithFee})`, cx + totalColWidth / 2, y + 32, {
                 font: "22px sans-serif", color: totalWithFee > 0 ? "#007AFF" : (totalWithFee < 0 ? "#DC3545" : "#6C757D"), align: "center"
               });
@@ -8358,7 +8371,7 @@ const Controller = (() => {
         <div id="calc-results-container" style="margin-top:12px;">${resultsCardHtml}</div>
 
         <button class="btn ${isCalculated ? "btn-primary" : "btn-secondary"}" id="game-save-btn" style="margin-top:12px;" ${canSave ? "" : "disabled"}>${t("btn_save")}</button>
-        ${finishedGamesCount > 0 ? `<button type="button" id="record-session-progress-btn" style="display:block; width:100%; margin-top:10px; padding:12px; border-radius:10px; border:none; background:#5AC8FA; color:#fff; font-size:15px; font-weight:600; cursor:pointer;">${t("btn_session_progress")}</button>` : ""}
+        ${finishedGamesCount > 0 ? `<button type="button" id="record-session-progress-btn" style="display:block; width:100%; margin-top:10px; padding:12px; border-radius:10px; border:none; background:var(--filter-bg); color:var(--primary); font-size:15px; font-weight:600; cursor:pointer;">${t("btn_session_progress")}</button>` : ""}
         <button class="btn btn-danger" id="game-close-btn" style="margin-top:10px;">${t("btn_close")}</button>
       ` : ""}
     `;
