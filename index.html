@@ -5676,51 +5676,62 @@ const Statistics = (() => {
    ============================================================ */
 const Export = (() => {
   const PLAYERS_HEADERS = ["id", "name", "color", "photo", "favorite", "memo", "createdAt", "updatedAt", "deleted"];
-  const RULES_HEADERS = ["id", "name", "gameType", "startPoint", "returnPoint", "uma", "rate", "tobiPoint", "tobiEnabled", "allowNegative", "chipEnabled", "chipRate", "pointRounding", "createdAt"];
-  const SESSIONS_HEADERS = ["id", "date", "title", "ruleId", "playerIds", "chips", "createdAt", "updatedAt", "deleted"];
-  const GAMES_HEADERS = ["id", "sessionId", "gameNumber", "startTime", "endTime", "seatWinds", "isFinished", "isWestRound", "memo", "yakumanRecords"];
-  // yakumanRecords列を追加する前の旧フォーマット（過去にエクスポートしたCSVを読み込めるよう後方互換のために残す）
-  const GAMES_HEADERS_LEGACY = ["id", "sessionId", "gameNumber", "startTime", "endTime", "seatWinds", "isFinished", "isWestRound", "memo"];
-  const RESULTS_HEADERS = ["gameId", "playerId", "playerNameSnapshot", "rank", "finalPoint", "scorePoint", "umaPoint", "okaPoint", "tobiPoint", "totalPoint"];
+  const RULES_HEADERS = ["id", "name", "gameType", "startPoint", "returnPoint", "uma", "rate", "tobiPoint", "tobiEnabled", "allowNegative", "chipEnabled", "chipRate", "pointRounding", "createdAt", "manualUmaOnTie", "yakumanEnabled", "yakumanCelebrationEnabled", "customYakumanList"];
+  const SESSIONS_HEADERS = ["id", "date", "title", "ruleId", "playerIds", "chips", "createdAt", "updatedAt", "deleted", "venueFee"];
+  const GAMES_HEADERS = ["id", "sessionId", "gameNumber", "startTime", "endTime", "seatWinds", "isFinished", "isWestRound", "memo", "yakumanRecords", "tobi", "celebrationPoints"];
+  const RESULTS_HEADERS = ["gameId", "playerId", "playerNameSnapshot", "rank", "finalPoint", "scorePoint", "umaPoint", "okaPoint", "tobiPoint", "totalPoint", "celebrationPoint"];
+
+  const GROUPS_HEADERS = ["id", "name", "gameType", "playerIds", "ruleId", "isDefault", "isStatsDefault", "createdAt", "updatedAt", "deleted"];
 
   function playersToRows(players) {
     return players.map(p => [p.id, p.name, p.color, p.photo || "", p.favorite, p.memo, p.createdAt, p.updatedAt, p.deleted]);
   }
   function rulesToRows(rules) {
-    return rules.map(r => [r.id, r.name, r.gameType, r.startPoint, r.returnPoint, r.uma.join(";"), r.rate, r.tobiPoint, r.tobiEnabled, r.allowNegative, r.chipEnabled, r.chipRate, r.pointRounding, r.createdAt]);
+    return rules.map(r => [
+      r.id, r.name, r.gameType, r.startPoint, r.returnPoint, r.uma.join(";"), r.rate, r.tobiPoint, r.tobiEnabled, r.allowNegative, r.chipEnabled, r.chipRate, r.pointRounding, r.createdAt,
+      !!r.manualUmaOnTie, r.yakumanEnabled !== false, !!r.yakumanCelebrationEnabled, JSON.stringify(r.customYakumanList || [])
+    ]);
   }
   function sessionsToRows(sessions) {
-    return sessions.map(s => [s.id, s.date, s.title, s.ruleId, (s.playerIds || []).join(";"), JSON.stringify(s.chips || {}), s.createdAt, s.updatedAt, s.deleted]);
+    return sessions.map(s => [s.id, s.date, s.title, s.ruleId, (s.playerIds || []).join(";"), JSON.stringify(s.chips || {}), s.createdAt, s.updatedAt, s.deleted, s.venueFee || 0]);
   }
   function gamesToRows(games) {
-    return games.map(g => [g.id, g.sessionId, g.gameNumber, g.startTime, g.endTime, JSON.stringify(g.seatWinds || {}), g.isFinished, g.isWestRound, g.memo, JSON.stringify(g.yakumanRecords || [])]);
+    return games.map(g => [
+      g.id, g.sessionId, g.gameNumber, g.startTime, g.endTime, JSON.stringify(g.seatWinds || {}), g.isFinished, g.isWestRound, g.memo, JSON.stringify(g.yakumanRecords || []),
+      JSON.stringify(g.tobi || null), JSON.stringify(g.celebrationPoints || {})
+    ]);
   }
   function resultsToRows(games) {
     const rows = [];
     games.forEach(g => {
       (g.results || []).forEach(r => {
-        rows.push([g.id, r.playerId, r.playerNameSnapshot, r.rank, r.finalPoint, r.scorePoint, r.umaPoint, r.okaPoint, r.tobiPoint, r.totalPoint]);
+        rows.push([g.id, r.playerId, r.playerNameSnapshot, r.rank, r.finalPoint, r.scorePoint, r.umaPoint, r.okaPoint, r.tobiPoint, r.totalPoint, r.celebrationPoint || 0]);
       });
     });
     return rows;
   }
+  function groupsToRows(groups) {
+    return groups.map(g => [g.id, g.name, g.gameType, (g.playerIds || []).join(";"), g.ruleId, g.isDefault, g.isStatsDefault, g.createdAt, g.updatedAt, g.deleted]);
+  }
 
-  /* 5つのCSVを個別ファイルとして出力する（第7章 8節：1ファイルではなく複数CSVとして出力） */
+  /* 6つのCSVを個別ファイルとして出力する（第7章 8節：1ファイルではなく複数CSVとして出力） */
   async function exportAllCsv() {
     const players = Storage.getPlayers();
     const rules = Storage.getRules();
     const sessions = Storage.getSessions();
     const games = Storage.getGames();
+    const groups = Storage.get(Storage.KEYS.groups) || [];
 
     const files = [
       { filename: "players.csv", csv: Utility.arrayToCsv(PLAYERS_HEADERS, playersToRows(players)) },
       { filename: "rules.csv", csv: Utility.arrayToCsv(RULES_HEADERS, rulesToRows(rules)) },
       { filename: "sessions.csv", csv: Utility.arrayToCsv(SESSIONS_HEADERS, sessionsToRows(sessions)) },
       { filename: "games.csv", csv: Utility.arrayToCsv(GAMES_HEADERS, gamesToRows(games)) },
-      { filename: "results.csv", csv: Utility.arrayToCsv(RESULTS_HEADERS, resultsToRows(games)) }
+      { filename: "results.csv", csv: Utility.arrayToCsv(RESULTS_HEADERS, resultsToRows(games)) },
+      { filename: "groups.csv", csv: Utility.arrayToCsv(GROUPS_HEADERS, groupsToRows(groups)) }
     ];
 
-    // 5ファイルを個別に連続ダウンロードすると、最初の1件以外はブラウザに
+    // 複数ファイルを個別に連続ダウンロードすると、最初の1件以外はブラウザに
     // 「ユーザー操作に紐づかない連続ダウンロード」とみなされてブロックされることがあるため、
     // 1つのZIPファイルにまとめて1回のダウンロードで済むようにする。
     if (typeof JSZip !== "undefined") {
@@ -5754,13 +5765,17 @@ const Export = (() => {
     const usedRuleIds = new Set(filteredSessions.map(s => s.ruleId));
     const filteredRules = allRules.filter(r => usedRuleIds.has(r.id));
     const filteredPlayers = allPlayers.filter(p => selectedSet.has(p.id));
+    // グループは、メンバー全員が選択したプレイヤーに含まれているものだけを対象にする
+    const allGroups = Storage.get(Storage.KEYS.groups) || [];
+    const filteredGroups = allGroups.filter(g => (g.playerIds || []).length > 0 && g.playerIds.every(id => selectedSet.has(id)));
 
     const files = [
       { filename: "players.csv", csv: Utility.arrayToCsv(PLAYERS_HEADERS, playersToRows(filteredPlayers)) },
       { filename: "rules.csv", csv: Utility.arrayToCsv(RULES_HEADERS, rulesToRows(filteredRules)) },
       { filename: "sessions.csv", csv: Utility.arrayToCsv(SESSIONS_HEADERS, sessionsToRows(filteredSessions)) },
       { filename: "games.csv", csv: Utility.arrayToCsv(GAMES_HEADERS, gamesToRows(filteredGames)) },
-      { filename: "results.csv", csv: Utility.arrayToCsv(RESULTS_HEADERS, resultsToRows(filteredGames)) }
+      { filename: "results.csv", csv: Utility.arrayToCsv(RESULTS_HEADERS, resultsToRows(filteredGames)) },
+      { filename: "groups.csv", csv: Utility.arrayToCsv(GROUPS_HEADERS, groupsToRows(filteredGroups)) }
     ];
 
     if (typeof JSZip !== "undefined") {
@@ -5786,7 +5801,9 @@ const Export = (() => {
       rules: Storage.getRules(),
       sessions: Storage.getSessions(),
       games: Storage.getGames(),
-      settings: Storage.getSettings()
+      settings: Storage.getSettings(),
+      groups: Storage.get(Storage.KEYS.groups) || [],
+      mergeHistory: Storage.get(Storage.KEYS.mergeHistory) || []
     };
     const filename = `mahjong_backup_${Utility.formatDateForFilename(new Date())}.json`;
     Utility.downloadJsonFile(filename, backup);
@@ -5798,7 +5815,7 @@ const Export = (() => {
   }
 
   return {
-    PLAYERS_HEADERS, RULES_HEADERS, SESSIONS_HEADERS, GAMES_HEADERS, GAMES_HEADERS_LEGACY, RESULTS_HEADERS,
+    PLAYERS_HEADERS, RULES_HEADERS, SESSIONS_HEADERS, GAMES_HEADERS, RESULTS_HEADERS, GROUPS_HEADERS,
     exportAllCsv, exportSelectedPlayersCsv, exportJsonBackup
   };
 })();
@@ -5828,6 +5845,13 @@ const Import = (() => {
   function headersMatch(actual, expected) {
     return JSON.stringify(actual) === JSON.stringify(expected);
   }
+  /* 過去のバージョンでは列が少なかった可能性があるため、「現在の列一覧の先頭からの一致」であれば許容する。
+     新しい項目は常に末尾に追加する方針にしているため、古いCSVは必ず現在の列一覧のprefixになるはずで、
+     この判定1つだけで過去の全バージョンとの後方互換を保てる（レガシー列一覧を個別に列挙する必要がない） */
+  function headersMatchOrLegacyPrefix(actual, fullHeaders) {
+    if (!Array.isArray(actual) || actual.length === 0 || actual.length > fullHeaders.length) return false;
+    return JSON.stringify(actual) === JSON.stringify(fullHeaders.slice(0, actual.length));
+  }
 
   /* ファイル名から種別を判定し、該当するStorageキーを丸ごと置き換える（games.csvはresults.csvとセットで扱う） */
   function importCsvFile(filename, text) {
@@ -5836,7 +5860,7 @@ const Import = (() => {
     const [headerRow, ...dataRows] = rows;
 
     if (filename.includes("players")) {
-      if (!headersMatch(headerRow, Export.PLAYERS_HEADERS)) return { ok: false, error: "players.csvの列構成が正しくありません" };
+      if (!headersMatchOrLegacyPrefix(headerRow, Export.PLAYERS_HEADERS)) return { ok: false, error: "players.csvの列構成が正しくありません" };
       const objs = rowsToObjects(headerRow, dataRows);
       for (const o of objs) { if (!isNonEmpty(o.id)) return { ok: false, error: "players.csvにIDが空の行があります" }; }
       const ids = objs.map(o => o.id);
@@ -5851,7 +5875,7 @@ const Import = (() => {
     }
 
     if (filename.includes("rules")) {
-      if (!headersMatch(headerRow, Export.RULES_HEADERS)) return { ok: false, error: "rules.csvの列構成が正しくありません" };
+      if (!headersMatchOrLegacyPrefix(headerRow, Export.RULES_HEADERS)) return { ok: false, error: "rules.csvの列構成が正しくありません" };
       const objs = rowsToObjects(headerRow, dataRows);
       const rules = objs.map(o => ({
         id: o.id, name: o.name, gameType: o.gameType,
@@ -5861,28 +5885,34 @@ const Import = (() => {
         tobiPoint: parseNum(o.tobiPoint), tobiEnabled: parseBool(o.tobiEnabled),
         allowNegative: parseBool(o.allowNegative),
         chipEnabled: parseBool(o.chipEnabled), chipRate: parseNum(o.chipRate) ?? 0.5,
-        pointRounding: o.pointRounding, createdAt: o.createdAt
+        pointRounding: o.pointRounding, createdAt: o.createdAt,
+        // 以下4項目は旧フォーマットのCSVには列自体がなくo.xxxがundefinedになるため、その場合は妥当な既定値を使う
+        manualUmaOnTie: parseBool(o.manualUmaOnTie),
+        yakumanEnabled: o.yakumanEnabled === undefined ? true : parseBool(o.yakumanEnabled),
+        yakumanCelebrationEnabled: parseBool(o.yakumanCelebrationEnabled),
+        customYakumanList: o.customYakumanList ? (JSON.parse(o.customYakumanList) || []) : []
       }));
       Storage.set(Storage.KEYS.rules, rules);
       return { ok: true, type: "rules", count: rules.length };
     }
 
     if (filename.includes("sessions")) {
-      if (!headersMatch(headerRow, Export.SESSIONS_HEADERS)) return { ok: false, error: "sessions.csvの列構成が正しくありません" };
+      if (!headersMatchOrLegacyPrefix(headerRow, Export.SESSIONS_HEADERS)) return { ok: false, error: "sessions.csvの列構成が正しくありません" };
       const objs = rowsToObjects(headerRow, dataRows);
       for (const o of objs) { if (!isValidDate(o.date)) return { ok: false, error: "sessions.csvに不正な日付形式の行があります" }; }
       const sessions = objs.map(o => ({
         id: o.id, date: o.date, title: o.title, ruleId: o.ruleId,
         playerIds: o.playerIds ? o.playerIds.split(";") : [],
         chips: parseSeatWinds(o.chips),
-        createdAt: o.createdAt, updatedAt: o.updatedAt, deleted: parseBool(o.deleted)
+        createdAt: o.createdAt, updatedAt: o.updatedAt, deleted: parseBool(o.deleted),
+        venueFee: o.venueFee !== undefined ? (parseNum(o.venueFee) || 0) : 0 // 旧フォーマットのCSVには列がないため未定義なら0
       }));
       Storage.set(Storage.KEYS.sessions, sessions);
       return { ok: true, type: "sessions", count: sessions.length };
     }
 
     if (filename.includes("games")) {
-      if (!headersMatch(headerRow, Export.GAMES_HEADERS) && !headersMatch(headerRow, Export.GAMES_HEADERS_LEGACY)) {
+      if (!headersMatchOrLegacyPrefix(headerRow, Export.GAMES_HEADERS)) {
         return { ok: false, error: "games.csvの列構成が正しくありません" };
       }
       const objs = rowsToObjects(headerRow, dataRows);
@@ -5891,10 +5921,26 @@ const Import = (() => {
         startTime: o.startTime, endTime: o.endTime || null, seatWinds: parseSeatWinds(o.seatWinds),
         isFinished: parseBool(o.isFinished), isWestRound: parseBool(o.isWestRound), memo: o.memo,
         yakumanRecords: parseYakumanRecords(o.yakumanRecords), // 旧フォーマットのCSVには列自体がなくo.yakumanRecordsがundefinedになるため、その場合は[]
+        tobi: o.tobi ? (JSON.parse(o.tobi) || null) : null,
+        celebrationPoints: o.celebrationPoints ? (JSON.parse(o.celebrationPoints) || {}) : {},
         results: []
       }));
       Storage.set(Storage.KEYS.games, games);
       return { ok: true, type: "games", count: games.length };
+    }
+
+    if (filename.includes("groups")) {
+      if (!headersMatchOrLegacyPrefix(headerRow, Export.GROUPS_HEADERS)) return { ok: false, error: "groups.csvの列構成が正しくありません" };
+      const objs = rowsToObjects(headerRow, dataRows);
+      const groups = objs.map(o => ({
+        id: o.id, name: o.name, gameType: o.gameType,
+        playerIds: o.playerIds ? o.playerIds.split(";") : [],
+        ruleId: o.ruleId || null,
+        isDefault: parseBool(o.isDefault), isStatsDefault: parseBool(o.isStatsDefault),
+        createdAt: o.createdAt, updatedAt: o.updatedAt, deleted: parseBool(o.deleted)
+      }));
+      Storage.set(Storage.KEYS.groups, groups);
+      return { ok: true, type: "groups", count: groups.length };
     }
 
     if (filename.includes("results")) {
@@ -5910,8 +5956,7 @@ const Import = (() => {
     const gameRows = Utility.parseCsv(gamesText);
     if (gameRows.length === 0) return { ok: false, error: "games.csvが空です" };
     const [gHeader, ...gData] = gameRows;
-    const gHeaderIsLegacy = JSON.stringify(gHeader) === JSON.stringify(Export.GAMES_HEADERS_LEGACY);
-    if (JSON.stringify(gHeader) !== JSON.stringify(Export.GAMES_HEADERS) && !gHeaderIsLegacy) {
+    if (!headersMatchOrLegacyPrefix(gHeader, Export.GAMES_HEADERS)) {
       return { ok: false, error: "games.csvの列構成が正しくありません" };
     }
     const gameObjs = rowsToObjects(gHeader, gData);
@@ -5920,6 +5965,8 @@ const Import = (() => {
       startTime: o.startTime, endTime: o.endTime || null, seatWinds: parseSeatWinds(o.seatWinds),
       isFinished: parseBool(o.isFinished), isWestRound: parseBool(o.isWestRound), memo: o.memo,
       yakumanRecords: parseYakumanRecords(o.yakumanRecords),
+      tobi: o.tobi ? (JSON.parse(o.tobi) || null) : null,
+      celebrationPoints: o.celebrationPoints ? (JSON.parse(o.celebrationPoints) || {}) : {},
       results: []
     }));
 
@@ -5927,7 +5974,7 @@ const Import = (() => {
       const resultRows = Utility.parseCsv(resultsText);
       if (resultRows.length > 0) {
         const [rHeader, ...rData] = resultRows;
-        if (JSON.stringify(rHeader) !== JSON.stringify(Export.RESULTS_HEADERS)) {
+        if (!headersMatchOrLegacyPrefix(rHeader, Export.RESULTS_HEADERS)) {
           return { ok: false, error: "results.csvの列構成が正しくありません" };
         }
         rowsToObjects(rHeader, rData).forEach(o => {
@@ -5937,7 +5984,7 @@ const Import = (() => {
             playerId: o.playerId, playerNameSnapshot: o.playerNameSnapshot,
             rank: parseNum(o.rank), finalPoint: parseNum(o.finalPoint), scorePoint: parseNum(o.scorePoint),
             umaPoint: parseNum(o.umaPoint), okaPoint: parseNum(o.okaPoint), tobiPoint: parseNum(o.tobiPoint),
-            totalPoint: parseNum(o.totalPoint)
+            totalPoint: parseNum(o.totalPoint), celebrationPoint: o.celebrationPoint !== undefined ? (parseNum(o.celebrationPoint) || 0) : 0
           });
         });
       }
@@ -5955,6 +6002,10 @@ const Import = (() => {
     if (![obj.players, obj.rules, obj.sessions, obj.games].every(Array.isArray)) {
       return { ok: false, error: "データ形式が正しくありません" };
     }
+    // groups・mergeHistoryは旧バージョンのバックアップには存在しないため任意項目とし、
+    // 含まれている場合のみ配列であることをチェックする
+    if (obj.groups !== undefined && !Array.isArray(obj.groups)) return { ok: false, error: "データ形式が正しくありません（groups）" };
+    if (obj.mergeHistory !== undefined && !Array.isArray(obj.mergeHistory)) return { ok: false, error: "データ形式が正しくありません（mergeHistory）" };
     return { ok: true };
   }
 
@@ -5967,6 +6018,10 @@ const Import = (() => {
     Storage.set(Storage.KEYS.games, obj.games);
     const settings = Object.assign(Models.createDefaultSettings(), obj.settings || {});
     Storage.set(Storage.KEYS.settings, settings);
+    // 旧バージョンのバックアップ（groups・mergeHistoryを含まない）を読み込んだ場合は、
+    // 既存のデータを消さずそのまま残す（バックアップに含まれていた時だけ置き換える）
+    if (obj.groups !== undefined) Storage.set(Storage.KEYS.groups, obj.groups);
+    if (obj.mergeHistory !== undefined) Storage.set(Storage.KEYS.mergeHistory, obj.mergeHistory);
     return { ok: true };
   }
 
