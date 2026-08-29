@@ -6161,8 +6161,28 @@ const Share = (() => {
     const blockGap = 30;
 
     const blocks = [];
-    for (let i = 0; i < finishedGames.length; i += GAMES_PER_BLOCK) {
-      blocks.push(finishedGames.slice(i, i + GAMES_PER_BLOCK));
+    if (finishedGames.length <= GAMES_PER_BLOCK) {
+      // 1行に収まる場合は、そのまま1ブロック（列幅を動的に縮めて合計欄と共存させる既存ロジックに任せる）
+      blocks.push(finishedGames.slice());
+    } else {
+      // 2行以上に分かれる場合、最後のブロックだけは「小計・合計（＋チップ）」の列数ぶん半荘数を減らして予約し、
+      // 各ブロックの列幅を統一したまま、最後のブロックの右端が画像の外にはみ出さないようにする
+      const maxLastBlockGames = Math.max(1, GAMES_PER_BLOCK - extraColumnCount);
+      let remaining = finishedGames.length;
+      let offset = 0;
+      while (remaining > 0) {
+        let take;
+        if (remaining <= maxLastBlockGames) {
+          take = remaining;
+        } else if (remaining <= GAMES_PER_BLOCK) {
+          take = remaining - maxLastBlockGames;
+        } else {
+          take = GAMES_PER_BLOCK;
+        }
+        blocks.push(finishedGames.slice(offset, offset + take));
+        offset += take;
+        remaining -= take;
+      }
     }
     if (blocks.length === 0) blocks.push([]);
 
