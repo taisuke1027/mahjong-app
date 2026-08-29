@@ -5798,7 +5798,7 @@ const Export = (() => {
   }
 
   return {
-    PLAYERS_HEADERS, RULES_HEADERS, SESSIONS_HEADERS, GAMES_HEADERS, RESULTS_HEADERS,
+    PLAYERS_HEADERS, RULES_HEADERS, SESSIONS_HEADERS, GAMES_HEADERS, GAMES_HEADERS_LEGACY, RESULTS_HEADERS,
     exportAllCsv, exportSelectedPlayersCsv, exportJsonBackup
   };
 })();
@@ -5882,7 +5882,7 @@ const Import = (() => {
     }
 
     if (filename.includes("games")) {
-      if (!headersMatch(headerRow, Export.GAMES_HEADERS) && !headersMatch(headerRow, GAMES_HEADERS_LEGACY)) {
+      if (!headersMatch(headerRow, Export.GAMES_HEADERS) && !headersMatch(headerRow, Export.GAMES_HEADERS_LEGACY)) {
         return { ok: false, error: "games.csvの列構成が正しくありません" };
       }
       const objs = rowsToObjects(headerRow, dataRows);
@@ -5910,7 +5910,7 @@ const Import = (() => {
     const gameRows = Utility.parseCsv(gamesText);
     if (gameRows.length === 0) return { ok: false, error: "games.csvが空です" };
     const [gHeader, ...gData] = gameRows;
-    const gHeaderIsLegacy = JSON.stringify(gHeader) === JSON.stringify(GAMES_HEADERS_LEGACY);
+    const gHeaderIsLegacy = JSON.stringify(gHeader) === JSON.stringify(Export.GAMES_HEADERS_LEGACY);
     if (JSON.stringify(gHeader) !== JSON.stringify(Export.GAMES_HEADERS) && !gHeaderIsLegacy) {
       return { ok: false, error: "games.csvの列構成が正しくありません" };
     }
