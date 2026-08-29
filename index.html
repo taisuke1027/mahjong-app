@@ -5678,7 +5678,9 @@ const Export = (() => {
   const PLAYERS_HEADERS = ["id", "name", "color", "photo", "favorite", "memo", "createdAt", "updatedAt", "deleted"];
   const RULES_HEADERS = ["id", "name", "gameType", "startPoint", "returnPoint", "uma", "rate", "tobiPoint", "tobiEnabled", "allowNegative", "chipEnabled", "chipRate", "pointRounding", "createdAt"];
   const SESSIONS_HEADERS = ["id", "date", "title", "ruleId", "playerIds", "chips", "createdAt", "updatedAt", "deleted"];
-  const GAMES_HEADERS = ["id", "sessionId", "gameNumber", "startTime", "endTime", "seatWinds", "isFinished", "isWestRound", "memo"];
+  const GAMES_HEADERS = ["id", "sessionId", "gameNumber", "startTime", "endTime", "seatWinds", "isFinished", "isWestRound", "memo", "yakumanRecords"];
+  // yakumanRecords列を追加する前の旧フォーマット（過去にエクスポートしたCSVを読み込めるよう後方互換のために残す）
+  const GAMES_HEADERS_LEGACY = ["id", "sessionId", "gameNumber", "startTime", "endTime", "seatWinds", "isFinished", "isWestRound", "memo"];
   const RESULTS_HEADERS = ["gameId", "playerId", "playerNameSnapshot", "rank", "finalPoint", "scorePoint", "umaPoint", "okaPoint", "tobiPoint", "totalPoint"];
 
   function playersToRows(players) {
@@ -5691,7 +5693,7 @@ const Export = (() => {
     return sessions.map(s => [s.id, s.date, s.title, s.ruleId, (s.playerIds || []).join(";"), JSON.stringify(s.chips || {}), s.createdAt, s.updatedAt, s.deleted]);
   }
   function gamesToRows(games) {
-    return games.map(g => [g.id, g.sessionId, g.gameNumber, g.startTime, g.endTime, JSON.stringify(g.seatWinds || {}), g.isFinished, g.isWestRound, g.memo]);
+    return games.map(g => [g.id, g.sessionId, g.gameNumber, g.startTime, g.endTime, JSON.stringify(g.seatWinds || {}), g.isFinished, g.isWestRound, g.memo, JSON.stringify(g.yakumanRecords || [])]);
   }
   function resultsToRows(games) {
     const rows = [];
@@ -5812,6 +5814,9 @@ const Import = (() => {
   function parseSeatWinds(v) {
     try { return v ? JSON.parse(v) : {}; } catch (e) { return {}; }
   }
+  function parseYakumanRecords(v) {
+    try { return v ? JSON.parse(v) : []; } catch (e) { return []; }
+  }
 
   function rowsToObjects(headers, rows) {
     return rows.map(row => {
@@ -5877,12 +5882,15 @@ const Import = (() => {
     }
 
     if (filename.includes("games")) {
-      if (!headersMatch(headerRow, Export.GAMES_HEADERS)) return { ok: false, error: "games.csvの列構成が正しくありません" };
+      if (!headersMatch(headerRow, Export.GAMES_HEADERS) && !headersMatch(headerRow, GAMES_HEADERS_LEGACY)) {
+        return { ok: false, error: "games.csvの列構成が正しくありません" };
+      }
       const objs = rowsToObjects(headerRow, dataRows);
       const games = objs.map(o => ({
         id: o.id, sessionId: o.sessionId, gameNumber: parseNum(o.gameNumber),
         startTime: o.startTime, endTime: o.endTime || null, seatWinds: parseSeatWinds(o.seatWinds),
         isFinished: parseBool(o.isFinished), isWestRound: parseBool(o.isWestRound), memo: o.memo,
+        yakumanRecords: parseYakumanRecords(o.yakumanRecords), // 旧フォーマットのCSVには列自体がなくo.yakumanRecordsがundefinedになるため、その場合は[]
         results: []
       }));
       Storage.set(Storage.KEYS.games, games);
@@ -5902,7 +5910,8 @@ const Import = (() => {
     const gameRows = Utility.parseCsv(gamesText);
     if (gameRows.length === 0) return { ok: false, error: "games.csvが空です" };
     const [gHeader, ...gData] = gameRows;
-    if (JSON.stringify(gHeader) !== JSON.stringify(Export.GAMES_HEADERS)) {
+    const gHeaderIsLegacy = JSON.stringify(gHeader) === JSON.stringify(GAMES_HEADERS_LEGACY);
+    if (JSON.stringify(gHeader) !== JSON.stringify(Export.GAMES_HEADERS) && !gHeaderIsLegacy) {
       return { ok: false, error: "games.csvの列構成が正しくありません" };
     }
     const gameObjs = rowsToObjects(gHeader, gData);
@@ -5910,6 +5919,7 @@ const Import = (() => {
       id: o.id, sessionId: o.sessionId, gameNumber: parseNum(o.gameNumber),
       startTime: o.startTime, endTime: o.endTime || null, seatWinds: parseSeatWinds(o.seatWinds),
       isFinished: parseBool(o.isFinished), isWestRound: parseBool(o.isWestRound), memo: o.memo,
+      yakumanRecords: parseYakumanRecords(o.yakumanRecords),
       results: []
     }));
 
@@ -6161,30 +6171,16 @@ const Share = (() => {
     const blockGap = 30;
 
     const blocks = [];
-    if (finishedGames.length <= GAMES_PER_BLOCK) {
-      // 1行に収まる場合は、そのまま1ブロック（列幅を動的に縮めて合計欄と共存させる既存ロジックに任せる）
-      blocks.push(finishedGames.slice());
-    } else {
-      // 2行以上に分かれる場合、最後のブロックだけは「小計・合計（＋チップ）」の列数ぶん半荘数を減らして予約し、
-      // 各ブロックの列幅を統一したまま、最後のブロックの右端が画像の外にはみ出さないようにする
-      const maxLastBlockGames = Math.max(1, GAMES_PER_BLOCK - extraColumnCount);
-      let remaining = finishedGames.length;
-      let offset = 0;
-      while (remaining > 0) {
-        let take;
-        if (remaining <= maxLastBlockGames) {
-          take = remaining;
-        } else if (remaining <= GAMES_PER_BLOCK) {
-          take = remaining - maxLastBlockGames;
-        } else {
-          take = GAMES_PER_BLOCK;
-        }
-        blocks.push(finishedGames.slice(offset, offset + take));
-        offset += take;
-        remaining -= take;
-      }
+    for (let i = 0; i < finishedGames.length; i += GAMES_PER_BLOCK) {
+      blocks.push(finishedGames.slice(i, i + GAMES_PER_BLOCK));
     }
     if (blocks.length === 0) blocks.push([]);
+    // 最後のブロックに「小計・合計（＋チップ）」を並べると列がはみ出してしまう場合だけ、
+    // 半荘の列数はそのまま（6列ずつ均等）にしておき、小計・合計だけを専用の行として分離する
+    const lastBlockGameCount = blocks[blocks.length - 1].length;
+    if (blocks.length > 1 && lastBlockGameCount + extraColumnCount > GAMES_PER_BLOCK) {
+      blocks.push([]);
+    }
 
     const chipPointOf = (playerId) => chipEnabled ? (((session.chips && session.chips[playerId]) || 0) * rule.chipRate) : 0;
 
