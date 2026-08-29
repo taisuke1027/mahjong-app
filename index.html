@@ -7132,17 +7132,23 @@ const Controller = (() => {
       const shape = RISK_WAIT_SHAPES[n];
       if (shape.kanchan) {
         const [a, b] = shape.kanchan;
-        breakdown.kanchan = riskNCr(remain(`${a}${suit}`), 1) + riskNCr(remain(`${b}${suit}`), 1);
+        const remainA = remain(`${a}${suit}`), remainB = remain(`${b}${suit}`);
+        // カンチャンは「a・bを両方とも手牌に持っている」必要があるため、どちらかが残り0枚ならこの待ち自体が成立しない
+        breakdown.kanchan = (remainA === 0 || remainB === 0) ? 0 : riskNCr(remainA, 1) + riskNCr(remainB, 1);
       }
       if (shape.penchan) {
         const [a, b] = shape.penchan;
-        breakdown.penchan = riskNCr(remain(`${a}${suit}`), 1) + riskNCr(remain(`${b}${suit}`), 1);
+        const remainA = remain(`${a}${suit}`), remainB = remain(`${b}${suit}`);
+        breakdown.penchan = (remainA === 0 || remainB === 0) ? 0 : riskNCr(remainA, 1) + riskNCr(remainB, 1);
       }
       shape.ryanmen.forEach(r => {
         const furitenCode = `${r.furiten}${suit}`;
         if (furitenState && furitenState[furitenCode]) return; // フリテンでこの待ちは無効
         const [a, b] = r.tiles;
-        breakdown.ryanmen += riskNCr(remain(`${a}${suit}`), 1) + riskNCr(remain(`${b}${suit}`), 1);
+        const remainA = remain(`${a}${suit}`), remainB = remain(`${b}${suit}`);
+        // リャンメンも同様に、a・bを両方とも手牌に持っている必要があるため、どちらかが残り0枚ならこの待ちは成立しない
+        if (remainA === 0 || remainB === 0) return;
+        breakdown.ryanmen += riskNCr(remainA, 1) + riskNCr(remainB, 1);
       });
     }
 
