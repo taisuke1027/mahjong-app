@@ -394,6 +394,7 @@ body {
   min-height: 0;
   overflow-y: auto;
   padding: var(--gap-card) var(--gap-screen-x) 12px;
+  zoom: 0.85; /* 麻雀種別・グループ・プレイヤー選択画面のテキストを全体的に85%へ縮小する */
 }
 .fullscreen-panel__footer {
   flex: 0 0 auto;
@@ -2054,7 +2055,7 @@ input[type="number"] {
       <input type="number" id="rule-rate" step="0.1" min="0" inputmode="decimal" autocomplete="off">
 
       <label class="checkbox-row" style="margin-top:16px;">
-        <input type="checkbox" id="rule-manual-uma-on-tie"> <span data-i18n="label_manual_uma_on_tie">同点の場合はウマを手動で入力する</span>
+        <input type="checkbox" id="rule-manual-uma-on-tie"> <span data-i18n="label_manual_uma_on_tie">同点の場合はウマを手動で入力する（チェックしない場合は上家優先）</span>
       </label>
 
       <label class="checkbox-row" style="margin-top:16px;">
@@ -2579,7 +2580,7 @@ const I18N = {
     label_uma_order: "ウマ（1位から順）",
     unit_rank_1: "1位", unit_rank_2: "2位", unit_rank_3: "3位", unit_rank_4: "4位",
     label_rate: "レート（小計にかけて合計を算出）",
-    label_tobi_enabled: "飛び賞を有効にする", label_tobi_point: "飛び賞ポイント", label_manual_uma_on_tie: "同点の場合はウマを手動で入力する", desc_manual_uma_manual_input: "同点が発生したため、ウマを手動で入力します。（合計が0になるように入力してください）", error_manual_uma_sum: "ウマの合計が0ではありません", title_manual_uma_setting: "ウマの設定",
+    label_tobi_enabled: "飛び賞を有効にする", label_tobi_point: "飛び賞ポイント", label_manual_uma_on_tie: "同点の場合はウマを手動で入力する（チェックしない場合は上家優先）", desc_manual_uma_manual_input: "同点が発生したため、ウマを手動で入力します。（合計が0になるように入力してください）", error_manual_uma_sum: "ウマの合計が0ではありません", title_manual_uma_setting: "ウマの設定", title_tie_wind_setting: "風の設定", desc_tie_wind_setting: "同点が発生したため、上家優先でウマの順位を決めるのに必要な風を選択してください。",
     label_allow_negative: "箱下あり", label_chip_enabled: "チップあり",
     label_chip_rate: "チップ1枚のレート（ポイント）",
     btn_duplicate: "複製", title_confirm: "確認",
@@ -2789,7 +2790,7 @@ const I18N = {
     label_uma_order: "Uma (1st to last)",
     unit_rank_1: "1st", unit_rank_2: "2nd", unit_rank_3: "3rd", unit_rank_4: "4th",
     label_rate: "Rate (multiplies subtotal to get total)",
-    label_tobi_enabled: "Enable bust bonus", label_tobi_point: "Bust Bonus Points", label_manual_uma_on_tie: "Manually enter uma when there is a tie", desc_manual_uma_manual_input: "A tie occurred, so please enter each player\u2019s uma manually (the total must equal 0).", error_manual_uma_sum: "The uma values must add up to 0", title_manual_uma_setting: "Uma Setting",
+    label_tobi_enabled: "Enable bust bonus", label_tobi_point: "Bust Bonus Points", label_manual_uma_on_tie: "Manually enter uma when there is a tie", desc_manual_uma_manual_input: "A tie occurred, so please enter each player\u2019s uma manually (the total must equal 0).", error_manual_uma_sum: "The uma values must add up to 0", title_manual_uma_setting: "Uma Setting", title_tie_wind_setting: "Seat Wind Setting", desc_tie_wind_setting: "A tie occurred. Please select each tied player\u2019s seat wind so the tie can be broken by seating order.",
     label_allow_negative: "Allow negative score", label_chip_enabled: "Enable chips",
     label_chip_rate: "Points per chip",
     btn_duplicate: "Duplicate", title_confirm: "Confirm",
@@ -2999,7 +3000,7 @@ const I18N = {
     label_uma_order: "马点（从第1名开始）",
     unit_rank_1: "第1名", unit_rank_2: "第2名", unit_rank_3: "第3名", unit_rank_4: "第4名",
     label_rate: "费率（乘以小计得出合计）",
-    label_tobi_enabled: "启用击飞奖励", label_tobi_point: "击飞奖励分", label_manual_uma_on_tie: "平分时手动输入马点", desc_manual_uma_manual_input: "由于出现平分，请手动输入每位玩家的马点（合计需为0）。", error_manual_uma_sum: "马点合计不为0", title_manual_uma_setting: "马点设置",
+    label_tobi_enabled: "启用击飞奖励", label_tobi_point: "击飞奖励分", label_manual_uma_on_tie: "平分时手动输入马点", desc_manual_uma_manual_input: "由于出现平分，请手动输入每位玩家的马点（合计需为0）。", error_manual_uma_sum: "马点合计不为0", title_manual_uma_setting: "马点设置", title_tie_wind_setting: "设置门风", desc_tie_wind_setting: "出现平分，请选择相关玩家的门风，以便按座次优先决定马点顺位。",
     label_allow_negative: "允许箱下（负分）", label_chip_enabled: "启用筹码",
     label_chip_rate: "每个筹码的分值",
     btn_duplicate: "复制", title_confirm: "确认",
@@ -3209,7 +3210,7 @@ const I18N = {
     label_uma_order: "馬點（從第1名開始）",
     unit_rank_1: "第1名", unit_rank_2: "第2名", unit_rank_3: "第3名", unit_rank_4: "第4名",
     label_rate: "費率（乘以小計得出合計）",
-    label_tobi_enabled: "啟用擊飛獎勵", label_tobi_point: "擊飛獎勵分", label_manual_uma_on_tie: "平分時手動輸入馬點", desc_manual_uma_manual_input: "由於出現平分，請手動輸入每位玩家的馬點（合計需為0）。", error_manual_uma_sum: "馬點合計不為0", title_manual_uma_setting: "馬點設定",
+    label_tobi_enabled: "啟用擊飛獎勵", label_tobi_point: "擊飛獎勵分", label_manual_uma_on_tie: "平分時手動輸入馬點", desc_manual_uma_manual_input: "由於出現平分，請手動輸入每位玩家的馬點（合計需為0）。", error_manual_uma_sum: "馬點合計不為0", title_manual_uma_setting: "馬點設定", title_tie_wind_setting: "設定門風", desc_tie_wind_setting: "出現平分，請選擇相關玩家的門風，以便按座次優先決定馬點順位。",
     label_allow_negative: "允許箱下（負分）", label_chip_enabled: "啟用籌碼",
     label_chip_rate: "每個籌碼的分值",
     btn_duplicate: "複製", title_confirm: "確認",
@@ -3419,7 +3420,7 @@ const I18N = {
     label_uma_order: "우마（1위부터 순서대로）",
     unit_rank_1: "1위", unit_rank_2: "2위", unit_rank_3: "3위", unit_rank_4: "4위",
     label_rate: "레이트（소계에 곱해 합계를 산출）",
-    label_tobi_enabled: "타비 상금 사용", label_tobi_point: "타비 상금 포인트", label_manual_uma_on_tie: "동점일 경우 우마를 직접 입력", desc_manual_uma_manual_input: "동점이 발생하여 우마를 직접 입력합니다（합계가 0이 되도록 입력하세요）。", error_manual_uma_sum: "우마의 합계가 0이 아닙니다", title_manual_uma_setting: "우마 설정",
+    label_tobi_enabled: "타비 상금 사용", label_tobi_point: "타비 상금 포인트", label_manual_uma_on_tie: "동점일 경우 우마를 직접 입력", desc_manual_uma_manual_input: "동점이 발생하여 우마를 직접 입력합니다（합계가 0이 되도록 입력하세요）。", error_manual_uma_sum: "우마의 합계가 0이 아닙니다", title_manual_uma_setting: "우마 설정", title_tie_wind_setting: "바람 설정", desc_tie_wind_setting: "동점이 발생했습니다. 좌석 순서로 우선순위를 정하기 위해 해당 플레이어의 바람을 선택해주세요.",
     label_allow_negative: "마이너스 점수 허용", label_chip_enabled: "칩 사용",
     label_chip_rate: "칩 1개당 레이트（포인트）",
     btn_duplicate: "복제", title_confirm: "확인",
@@ -4629,13 +4630,22 @@ const Calculator = (() => {
       sorted.forEach((id, index) => { ranks[id] = index + 1; });
     } else {
       const winds = seatWinds || {};
-      const missingWind = playerIds.some(id => !winds[id]);
-      if (missingWind) {
-        return { ok: false, error: "風（東・南・西・北）を全員分設定してください" };
-      }
-      const windValues = playerIds.map(id => winds[id]);
-      if (new Set(windValues).size !== playerIds.length) {
-        return { ok: false, error: "風（東・南・西・北）が重複しています" };
+      // 風は「実際に同点が発生しているプレイヤー」の分だけ必要（タイブレークにしか使わないため）。
+      // 同点がなければ風が未設定でも順位を確定できる。
+      const pointGroups = {};
+      playerIds.forEach(id => {
+        (pointGroups[finalPoints[id]] = pointGroups[finalPoints[id]] || []).push(id);
+      });
+      const tiedIds = Object.values(pointGroups).filter(group => group.length > 1).flat();
+      if (tiedIds.length > 0) {
+        const missingWind = tiedIds.some(id => !winds[id]);
+        if (missingWind) {
+          return { ok: false, error: "同点が発生したプレイヤーの風（東・南・西・北）を設定してください" };
+        }
+        const windValues = tiedIds.map(id => winds[id]);
+        if (new Set(windValues).size !== tiedIds.length) {
+          return { ok: false, error: "風（東・南・西・北）が重複しています" };
+        }
       }
       ranks = decideRanks(playerIds, finalPoints, winds);
     }
@@ -8263,14 +8273,6 @@ const Controller = (() => {
     // 上書きされるため、ここでは総額の一致だけを基準にした判定は行わない
   }
 
-  function computeWindsComplete(game, players, rule) {
-    if (rule && rule.manualUmaOnTie) return true; // このルールでは風を使わないため常に「入力済み」扱いにする
-    if (!game) return false;
-    const winds = game.seatWinds || {};
-    const values = players.map(p => winds[p.id]).filter(Boolean);
-    return values.length === players.length && new Set(values).size === players.length;
-  }
-
   function renderRecordScreen() {
     const container = document.getElementById("record-screen-content");
     const session = SessionManager.getCurrent();
@@ -8334,25 +8336,14 @@ const Controller = (() => {
     const boxUnderExempt = !!rule && !rule.allowNegative;
     const isMatch = allFilled && (currentTotal === requiredTotal || boxUnderExempt);
 
-    const availableWinds = players.length === 3 ? ["east", "south", "west"] : ["east", "south", "west", "north"];
-    const windsComplete = computeWindsComplete(activeGame, players, rule);
-
     const scoreRowsHtml = activeGame ? players.map(p => {
       const result = activeGame.results.find(res => res.playerId === p.id);
       const value = result?.finalPoint;
-      const seatWinds = activeGame.seatWinds || {};
-      const myWind = seatWinds[p.id];
-      const windButtonsHtml = availableWinds.map(w => {
-        const takenByOther = Object.entries(seatWinds).some(([pid, wd]) => pid !== p.id && wd === w);
-        return `<button type="button" class="wind-btn ${myWind === w ? "is-selected" : ""} ${takenByOther ? "is-disabled" : ""}"
-                        data-wind-player-id="${p.id}" data-wind-value="${w}" ${takenByOther ? "disabled" : ""}>${t("wind_" + w)}</button>`;
-      }).join("");
       return `
         <div class="score-row">
           <div class="score-row__top">
             <span class="score-row__icon" style="${avatarStyle(p)} cursor:pointer;" data-score-participant-id="${p.id}"></span>
             <span class="score-row__name">${p.name}</span>
-            ${rule && rule.manualUmaOnTie ? "" : `<div class="wind-picker">${windButtonsHtml}</div>`}
           </div>
           <input type="number" class="score-row__input"
                  data-score-player-id="${p.id}"
@@ -8370,7 +8361,7 @@ const Controller = (() => {
       : null;
     const savedResults = activeGame && activeGame.results?.every(r => r.rank != null) ? activeGame.results : null;
     const displayResults = pendingForThisGame ? pendingForThisGame.results : savedResults;
-    const readyToCalc = isMatch && windsComplete;
+    const readyToCalc = isMatch;
     // 「再計算」を押していなくても、入力が揃っていれば「保存」を押せるようにする
     // （保存ボタン押下時に、計算がまだなら自動で計算してから保存する）
     const canSave = !!pendingForThisGame || readyToCalc;
@@ -8407,7 +8398,6 @@ const Controller = (() => {
           ${scoreRowsHtml}
           <p style="font-size:11px; color:var(--text-sub); margin:8px 0 0;">${t("hint_participant_tap")}</p>
           <div id="total-banner-container" style="margin-top:12px;">${totalBannerHtml}</div>
-          ${!windsComplete ? `<p style="font-size:12px; color:var(--danger); margin:8px 0 0;">${t("warning_winds_incomplete")}</p>` : ""}
 
           ${rule && rule.yakumanEnabled ? (() => {
             const hasExistingYakumanData = (activeGame.yakumanRecords || []).length > 0
@@ -8581,23 +8571,6 @@ const Controller = (() => {
       });
     });
 
-    document.querySelectorAll("[data-wind-player-id]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        if (btn.disabled) return;
-        const playerId = btn.dataset.windPlayerId;
-        const wind = btn.dataset.windValue;
-        const game = GameManager.getById(activeGameId);
-        const winds = (game && game.seatWinds) || {};
-        // 他のプレイヤーが同じ風を持っていたら外す（入れ替え）
-        Object.keys(winds).forEach(pid => {
-          if (pid !== playerId && winds[pid] === wind) GameManager.setSeatWind(activeGameId, pid, null);
-        });
-        // 自分がすでにこの風なら解除（トグル）、そうでなければ設定
-        GameManager.setSeatWind(activeGameId, playerId, winds[playerId] === wind ? null : wind);
-        renderRecordScreen();
-      });
-    });
-
     document.querySelectorAll("[data-score-player-id]").forEach(input => {
       input.addEventListener("input", (e) => {
         const playerId = e.target.dataset.scorePlayerId;
@@ -8638,7 +8611,7 @@ const Controller = (() => {
     if (saveBtn) saveBtn.addEventListener("click", () => saveCurrentGame(session, activeGame, players, rule));
   }
 
-  /* 「保存」ボタンが押せる状態かどうか（計算済み、または入力・風が揃っていて計算可能） */
+  /* 「保存」ボタンが押せる状態かどうか（計算済み、または持ち点の入力が揃っていて計算可能） */
   function canSaveCurrentGame(activeGame, players, rule) {
     if (!activeGame) return false;
     if (pendingCalculation && pendingCalculation.gameId === activeGame.id) return true;
@@ -8648,8 +8621,7 @@ const Controller = (() => {
     });
     const total = values.reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0);
     const required = rule.startPoint * players.length;
-    const sumOk = values.every(v => Number.isFinite(v)) && total === required;
-    return sumOk && computeWindsComplete(activeGame, players, rule);
+    return values.every(v => Number.isFinite(v)) && total === required;
   }
 
   /* 「保存」の実処理：既に計算済みならそのまま保存し、未計算でも入力が揃っていれば自動で計算してから保存する。
@@ -8690,15 +8662,28 @@ const Controller = (() => {
     const seatWinds = (GameManager.getById(activeGame.id) || activeGame).seatWinds || {};
     const negativePlayers = players.filter(p => finalPoints[p.id] < 0);
 
-    // 飛び賞の確認・入力が済んだ後、必要であれば同点時のウマ手動入力に進んでから計算を確定する
+    // 飛び賞の確認・入力が済んだ後、必要であれば同点時のウマ手動入力／風の選択に進んでから計算を確定する
     const afterTobi = (tobi) => {
+      const pointGroups = {};
+      playerIds.forEach(id => { (pointGroups[finalPoints[id]] = pointGroups[finalPoints[id]] || []).push(id); });
+      const tiedIds = Object.values(pointGroups).filter(group => group.length > 1).flat();
+
       if (rule.manualUmaOnTie) {
-        const pointCounts = {};
-        playerIds.forEach(id => { pointCounts[finalPoints[id]] = (pointCounts[finalPoints[id]] || 0) + 1; });
-        const hasTie = Object.values(pointCounts).some(c => c > 1);
-        if (hasTie) {
+        if (tiedIds.length > 0) {
           openManualUmaDialog({ players, rule, gameLabel: tf("unit_halfgame_n", activeGame.gameNumber), onConfirm: (manualUma) => {
             finalizeCalculation({ playerIds, finalPoints, rule, seatWinds, tobi, activeGame, onDone, manualUma });
+          }});
+          return;
+        }
+      } else if (tiedIds.length > 0) {
+        // 同点が発生していて、かつ風がまだ全員分揃っていない場合だけ、風の選択を挟む
+        const tiedPlayers = players.filter(p => tiedIds.includes(p.id));
+        const alreadyComplete = tiedIds.every(id => seatWinds[id]) && new Set(tiedIds.map(id => seatWinds[id])).size === tiedIds.length;
+        if (!alreadyComplete) {
+          openTieWindDialog({ tiedPlayers, players, rule, gameLabel: tf("unit_halfgame_n", activeGame.gameNumber), onConfirm: (winds) => {
+            tiedIds.forEach(id => GameManager.setSeatWind(activeGame.id, id, winds[id]));
+            const updatedWinds = (GameManager.getById(activeGame.id) || activeGame).seatWinds || {};
+            finalizeCalculation({ playerIds, finalPoints, rule, seatWinds: updatedWinds, tobi, activeGame, onDone });
           }});
           return;
         }
@@ -8791,6 +8776,69 @@ const Controller = (() => {
     confirmBtn.addEventListener("click", onConfirmClick);
     cancelBtn.addEventListener("click", onCancelClick);
   }
+
+  /* 同点が発生した半荘で、実際にウマの順位（上家優先）を決めるために必要な風を、
+     同点になったプレイヤーの分だけ選択させるダイアログ（動的に生成する） */
+  function openTieWindDialog({ tiedPlayers, players, rule, onConfirm, gameLabel = null }) {
+    const availableWinds = players.length === 3 ? ["east", "south", "west"] : ["east", "south", "west", "north"];
+    const selection = {}; // playerId -> wind（未選択はnull）
+    tiedPlayers.forEach(p => { selection[p.id] = null; });
+
+    const overlay = document.createElement("div");
+    overlay.className = "dialog-overlay is-open";
+    overlay.innerHTML = `
+      <div class="dialog-box">
+        <div class="dialog-title">${t("title_tie_wind_setting")}${gameLabel ? `（${gameLabel}）` : ""}</div>
+        <div class="dialog-body">
+          <p style="font-size:13px; color:var(--text-sub); margin-bottom:12px;">${t("desc_tie_wind_setting")}</p>
+          <div id="tie-wind-list"></div>
+        </div>
+        <div class="dialog-actions">
+          <button class="btn btn-secondary" data-action="cancel">${t("btn_cancel")}</button>
+          <button class="btn btn-primary" id="tie-wind-confirm" disabled>${t("btn_apply")}</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const listEl = overlay.querySelector("#tie-wind-list");
+    const confirmBtn = overlay.querySelector("#tie-wind-confirm");
+
+    const render = () => {
+      listEl.innerHTML = tiedPlayers.map(p => {
+        const myWind = selection[p.id];
+        const buttons = availableWinds.map(w => {
+          const takenByOther = Object.entries(selection).some(([pid, wd]) => pid !== p.id && wd === w);
+          return `<button type="button" class="wind-btn ${myWind === w ? "is-selected" : ""} ${takenByOther ? "is-disabled" : ""}"
+                          data-tie-wind-player-id="${p.id}" data-tie-wind-value="${w}" ${takenByOther ? "disabled" : ""}>${t("wind_" + w)}</button>`;
+        }).join("");
+        return `
+          <div style="display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--border);">
+            <span style="flex:1; display:flex; align-items:center; gap:8px; font-size:14px;">${UI.colorDot(p)}${p.name}</span>
+            <div class="wind-picker">${buttons}</div>
+          </div>
+        `;
+      }).join("");
+      listEl.querySelectorAll("[data-tie-wind-player-id]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          if (btn.disabled) return;
+          const pid = btn.dataset.tieWindPlayerId;
+          const wind = btn.dataset.tieWindValue;
+          selection[pid] = selection[pid] === wind ? null : wind;
+          render();
+        });
+      });
+      confirmBtn.disabled = tiedPlayers.some(p => !selection[p.id]);
+    };
+    render();
+
+    overlay.querySelector('[data-action="cancel"]').addEventListener("click", () => overlay.remove());
+    confirmBtn.addEventListener("click", () => {
+      overlay.remove();
+      onConfirm({ ...selection });
+    });
+  }
+
 
   function openTobiSelectDialog({ players, negativePlayers, onConfirm, gameLabel = null }) {
     const isManualMode = negativePlayers.length >= 2;
@@ -10575,12 +10623,31 @@ const Controller = (() => {
 
         // 新ルールで「同点の場合はウマを手動で入力する」が有効かつ、実際にこの半荘で同点が
         // 発生している場合は、対局記録時と同じ手入力ダイアログを半荘ごとに順番に表示する
+        const pointGroups = {};
+        playerIds.forEach(id => { (pointGroups[finalPoints[id]] = pointGroups[finalPoints[id]] || []).push(id); });
+        const tiedIds = Object.values(pointGroups).filter(group => group.length > 1).flat();
+
         if (newRule.manualUmaOnTie) {
-          const pointCounts = {};
-          playerIds.forEach(id => { pointCounts[finalPoints[id]] = (pointCounts[finalPoints[id]] || 0) + 1; });
-          const hasTie = Object.values(pointCounts).some(c => c > 1);
-          if (hasTie) {
+          if (tiedIds.length > 0) {
             openManualUmaDialog({ players, rule: newRule, gameLabel: tf("unit_halfgame_n", game.gameNumber), onConfirm: (manualUma) => proceedWithUma(manualUma) });
+            return;
+          }
+        } else if (tiedIds.length > 0) {
+          const tiedPlayers = players.filter(p => tiedIds.includes(p.id));
+          const alreadyComplete = tiedIds.every(id => seatWinds[id]) && new Set(tiedIds.map(id => seatWinds[id])).size === tiedIds.length;
+          if (!alreadyComplete) {
+            openTieWindDialog({ tiedPlayers, players, rule: newRule, gameLabel: tf("unit_halfgame_n", game.gameNumber), onConfirm: (winds) => {
+              tiedIds.forEach(id => GameManager.setSeatWind(game.id, id, winds[id]));
+              const updatedGame = GameManager.getById(game.id) || game;
+              const updatedWinds = updatedGame.seatWinds || {};
+              const calcResult = Calculator.calculate({ playerIds, finalPoints, rule: newRule, seatWinds: updatedWinds, tobi, celebrationPoints: existingCelebrationPoints, manualUma: null });
+              if (!calcResult.ok) {
+                UI.showToast(calcResult.error, "error");
+                return;
+              }
+              GameManager.saveComputedResults(game.id, calcResult.results, { tobi, celebrationPoints: existingCelebrationPoints, manualUma: null });
+              processNext(index + 1);
+            }});
             return;
           }
         }
