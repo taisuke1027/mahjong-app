@@ -869,6 +869,12 @@ body {
 }
 .section-header-title { font-size: 15px; font-weight: 700; }
 
+/* 設定画面「データ管理」：CSV／JSON／削除をカテゴリごとに区切って表示する */
+.settings-subsection { padding-top: 16px; margin-top: 16px; border-top: 1px solid var(--border); }
+.settings-subsection:first-of-type { padding-top: 0; margin-top: 0; border-top: none; }
+.settings-subsection__title { font-size: 12px; font-weight: 700; color: var(--text-sub); margin-bottom: 10px; }
+.settings-subsection__desc { font-size: 11px; color: var(--text-sub); margin: -4px 0 10px; line-height: 1.5; }
+
 /* ============================================================
    Phase3: 対局記録 用スタイル
    ============================================================ */
@@ -1786,13 +1792,29 @@ input[type="number"] {
         <div class="section-header-row">
           <span class="section-header-title" data-i18n="section_data_management">データ管理</span>
         </div>
-        <div id="backup-status-label" style="font-size:12px; color:var(--text-sub); margin-bottom:12px;"></div>
-        <button class="btn btn-secondary" id="csv-export-btn" style="margin-bottom:8px;" data-i18n="btn_csv_export">CSV出力</button>
-        <button class="btn btn-secondary" id="csv-export-selected-btn" style="margin-bottom:8px;" data-i18n="btn_csv_export_selected">プレイヤーを選んでCSV出力</button>
-        <button class="btn btn-secondary" id="csv-import-btn" style="margin-bottom:8px;" data-i18n="btn_csv_import">CSV読込</button>
-        <button class="btn btn-secondary" id="json-export-btn" style="margin-bottom:8px;" data-i18n="btn_json_export">JSONバックアップ</button>
-        <button class="btn btn-secondary" id="json-import-btn" style="margin-bottom:8px;" data-i18n="btn_json_import">JSON復元</button>
-        <button class="btn btn-danger" id="data-delete-btn" data-i18n="btn_delete_all_data">全データを削除</button>
+        <div id="backup-status-label" style="font-size:12px; color:var(--text-sub); margin-bottom:4px;"></div>
+
+        <div class="settings-subsection">
+          <div class="settings-subsection__title" data-i18n="subsection_csv">CSVでバックアップ・復元</div>
+          <p class="settings-subsection__desc" data-i18n="desc_csv_backup">対局・プレイヤー・ルールなどの主要なデータを、表計算ソフトでも開けるCSV形式で書き出し・読み込みします。</p>
+          <button class="btn btn-secondary" id="csv-export-btn" style="margin-bottom:8px;" data-i18n="btn_csv_export">CSV出力</button>
+          <button class="btn btn-secondary" id="csv-export-selected-btn" style="margin-bottom:8px;" data-i18n="btn_csv_export_selected">プレイヤーを選んでCSV出力</button>
+          <button class="btn btn-secondary" id="csv-import-btn" data-i18n="btn_csv_import">CSV読込</button>
+        </div>
+
+        <div class="settings-subsection">
+          <div class="settings-subsection__title" data-i18n="subsection_json">JSONでバックアップ・復元</div>
+          <p class="settings-subsection__desc" data-i18n="desc_json_backup">アプリ設定を含む全データを1つのファイルにまとめて書き出し・復元します。機種変更時のお引っ越しにおすすめです。</p>
+          <button class="btn btn-secondary" id="json-export-btn" style="margin-bottom:8px;" data-i18n="btn_json_export">JSONバックアップ</button>
+          <button class="btn btn-secondary" id="json-import-btn" data-i18n="btn_json_import">JSON復元</button>
+        </div>
+
+        <div class="settings-subsection">
+          <div class="settings-subsection__title" data-i18n="subsection_danger">データの削除</div>
+          <p class="settings-subsection__desc" data-i18n="desc_delete_all">アプリ内の全データを消去します。元に戻せないため、実行前にバックアップの取得をおすすめします。</p>
+          <button class="btn btn-danger" id="data-delete-btn" data-i18n="btn_delete_all_data">全データを削除</button>
+        </div>
+
         <input type="file" id="csv-import-input" accept=".csv,.zip" multiple style="display:none;">
         <input type="file" id="json-import-input" accept=".json,application/json" style="display:none;">
       </div>
@@ -2671,7 +2693,7 @@ const I18N = {
     confirm_delete_all_desc: "プレイヤー・ルール・対局履歴・設定がすべて削除されます。この操作は元に戻せません。",
     toast_all_data_deleted: "すべてのデータを削除しました",
     section_rule_management: "ルール管理", label_dark_mode: "ダークモード",
-    section_data_management: "データ管理",
+    section_data_management: "データ管理", subsection_csv: "CSVでバックアップ・復元", subsection_json: "JSONでバックアップ・復元", subsection_danger: "データの削除", desc_csv_backup: "対局・プレイヤー・ルールなどの主要なデータを、表計算ソフトでも開けるCSV形式で書き出し・読み込みします。", desc_json_backup: "アプリ設定を含む全データを1つのファイルにまとめて書き出し・復元します。機種変更時のお引っ越しにおすすめです。", desc_delete_all: "アプリ内の全データを消去します。元に戻せないため、実行前にバックアップの取得をおすすめします。",
     btn_csv_export: "CSV出力", btn_csv_export_selected: "プレイヤーを選んでCSV出力", title_csv_export_selected: "プレイヤーを選択", desc_csv_export_selected: "選択したプレイヤー全員だけが参加している対局のみが対象になります（1人でも選択外のプレイヤーがいる対局は除外されます）。", toast_csv_export_selected_done: "{0}半荘・{1}人のプレイヤーをCSVに書き出しました", toast_csv_export_selected_empty: "該当する対局がありませんでした（全員が選択したプレイヤーの対局のみが対象です）", btn_csv_import: "CSV読込",
     btn_json_export: "JSONバックアップ", btn_json_import: "JSON復元",
     btn_delete_all_data: "全データを削除", label_app_version: "アプリバージョン",
@@ -2881,7 +2903,7 @@ const I18N = {
     confirm_delete_all_desc: "All players, rules, game history, and settings will be deleted. This cannot be undone.",
     toast_all_data_deleted: "All data deleted",
     section_rule_management: "Rule Management", label_dark_mode: "Dark Mode",
-    section_data_management: "Data Management",
+    section_data_management: "Data Management", subsection_csv: "Back up / Restore with CSV", subsection_json: "Back up / Restore with JSON", subsection_danger: "Delete Data", desc_csv_backup: "Export or import your main data (games, players, rules, etc.) as CSV files you can open in spreadsheet apps.", desc_json_backup: "Export or restore all data, including app settings, as a single file. Recommended when switching devices.", desc_delete_all: "Erases all data in the app. This cannot be undone, so back up first.",
     btn_csv_export: "Export CSV", btn_csv_export_selected: "Export CSV for Selected Players", title_csv_export_selected: "Select Players", desc_csv_export_selected: "Only games where every participant is among the selected players will be included (any game with an unselected player is excluded).", toast_csv_export_selected_done: "Exported {0} games for {1} player(s) to CSV", toast_csv_export_selected_empty: "No matching games found (only games where all participants are selected players are included)", btn_csv_import: "Import CSV",
     btn_json_export: "JSON Backup", btn_json_import: "JSON Restore",
     btn_delete_all_data: "Delete All Data", label_app_version: "App Version",
@@ -3091,7 +3113,7 @@ const I18N = {
     confirm_delete_all_desc: "玩家・规则・对局历史・设置将全部删除。此操作无法撤销。",
     toast_all_data_deleted: "已删除所有数据",
     section_rule_management: "规则管理", label_dark_mode: "深色模式",
-    section_data_management: "数据管理",
+    section_data_management: "数据管理", subsection_csv: "使用CSV备份・还原", subsection_json: "使用JSON备份・还原", subsection_danger: "删除数据", desc_csv_backup: "将对局、玩家、规则等主要数据导出或导入为可用电子表格软件打开的CSV格式。", desc_json_backup: "将包含应用设置在内的全部数据汇总为一个文件进行导出或还原。推荐在更换设备时使用。", desc_delete_all: "清除应用内的全部数据。此操作无法撤销，请务必先进行备份。",
     btn_csv_export: "导出CSV", btn_csv_export_selected: "选择玩家导出CSV", title_csv_export_selected: "选择玩家", desc_csv_export_selected: "仅包含所有参与者都在所选玩家范围内的对局（只要有一位未选中的玩家参与，该对局就会被排除）。", toast_csv_export_selected_done: "已将{0}局、{1}位玩家导出为CSV", toast_csv_export_selected_empty: "没有符合条件的对局（仅包含全员都是所选玩家的对局）", btn_csv_import: "导入CSV",
     btn_json_export: "JSON备份", btn_json_import: "JSON还原",
     btn_delete_all_data: "删除所有数据", label_app_version: "应用版本",
@@ -3301,7 +3323,7 @@ const I18N = {
     confirm_delete_all_desc: "玩家・規則・對局歷史・設定將全部刪除。此操作無法復原。",
     toast_all_data_deleted: "已刪除所有資料",
     section_rule_management: "規則管理", label_dark_mode: "深色模式",
-    section_data_management: "資料管理",
+    section_data_management: "資料管理", subsection_csv: "使用CSV備份・還原", subsection_json: "使用JSON備份・還原", subsection_danger: "刪除資料", desc_csv_backup: "將對局、玩家、規則等主要資料匯出或匯入為可用試算表軟體開啟的CSV格式。", desc_json_backup: "將包含應用程式設定在內的全部資料彙整為一個檔案進行匯出或還原。建議在更換裝置時使用。", desc_delete_all: "清除應用程式內的全部資料。此操作無法復原，請務必先進行備份。",
     btn_csv_export: "匯出CSV", btn_csv_export_selected: "選擇玩家匯出CSV", title_csv_export_selected: "選擇玩家", desc_csv_export_selected: "僅包含所有參與者都在所選玩家範圍內的對局（只要有一位未選中的玩家參與，該對局就會被排除）。", toast_csv_export_selected_done: "已將{0}局、{1}位玩家匯出為CSV", toast_csv_export_selected_empty: "沒有符合條件的對局（僅包含全員都是所選玩家的對局）", btn_csv_import: "匯入CSV",
     btn_json_export: "JSON備份", btn_json_import: "JSON還原",
     btn_delete_all_data: "刪除所有資料", label_app_version: "應用程式版本",
@@ -3511,7 +3533,7 @@ const I18N = {
     confirm_delete_all_desc: "플레이어・규칙・대국 이력・설정이 모두 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
     toast_all_data_deleted: "모든 데이터를 삭제했습니다",
     section_rule_management: "규칙 관리", label_dark_mode: "다크 모드",
-    section_data_management: "데이터 관리",
+    section_data_management: "데이터 관리", subsection_csv: "CSV로 백업・복원", subsection_json: "JSON으로 백업・복원", subsection_danger: "데이터 삭제", desc_csv_backup: "대국・플레이어・규칙 등 주요 데이터를 스프레드시트 앱에서도 열 수 있는 CSV 형식으로 내보내거나 불러옵니다.", desc_json_backup: "앱 설정을 포함한 모든 데이터를 하나의 파일로 내보내거나 복원합니다. 기기 변경 시 추천합니다.", desc_delete_all: "앱 내 모든 데이터를 삭제합니다. 되돌릴 수 없으므로 실행 전 백업을 권장합니다.",
     btn_csv_export: "CSV 내보내기", btn_csv_export_selected: "선수를 선택하여 CSV 내보내기", title_csv_export_selected: "선수 선택", desc_csv_export_selected: "선택한 선수 전원만 참가한 대국만 대상이 됩니다（선택하지 않은 선수가 한 명이라도 있으면 해당 대국은 제외됩니다）。", toast_csv_export_selected_done: "{0}판, {1}명의 선수를 CSV로 내보냈습니다", toast_csv_export_selected_empty: "해당하는 대국이 없습니다（전원이 선택한 선수인 대국만 대상입니다）", btn_csv_import: "CSV 가져오기",
     btn_json_export: "JSON 백업", btn_json_import: "JSON 복원",
     btn_delete_all_data: "모든 데이터 삭제", label_app_version: "앱 버전",
@@ -13942,6 +13964,8 @@ const Controller = (() => {
     // 対局履歴の詳細・個人成績の詳細は、下スワイプで指に追従するように閉じられるようにする
     enableSwipeToDismiss("session-detail-dialog-overlay");
     enableSwipeToDismiss("player-detail-dialog-overlay");
+    enableSwipeToDismiss("rule-dialog-overlay");
+    enableSwipeToDismiss("yakuman-trophy-dialog-overlay");
     renderStatsScreen();
 
     /* ===== Phase6: 履歴編集 ===== */
