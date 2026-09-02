@@ -4097,6 +4097,71 @@ const Dialog = (() => {
   return { open, close, confirm, runPendingConfirm };
 })();
 
+/* 指定したダイアログを、下方向へのスワイプ（指に追従する動き）で閉じられるようにする。
+   ・スクロール可能な内容が一番上（scrollTop===0）まで来ている状態で、さらに下へなぞった時だけ発動する
+     （途中まで読んでいる最中に誤って閉じてしまわないよう、スクロールと競合しないようにする）
+   ・指の動きにそのまま追従させ（アニメーションなし）、離した時に一定距離を超えていれば閉じる、
+     超えていなければスナップして戻すことで「指にヌルッとついてくる」体感にする */
+function enableSwipeToDismiss(dialogId) {
+  const overlay = document.getElementById(dialogId);
+  if (!overlay) return;
+  const box = overlay.querySelector(".dialog-box");
+  if (!box) return;
+
+  const DISMISS_THRESHOLD = 120; // これ以上下にスワイプしたら閉じたとみなす距離(px)
+  let startY = 0;
+  let currentDeltaY = 0;
+  let isDragging = false;
+
+  box.addEventListener("touchstart", (e) => {
+    if (e.touches.length !== 1) return;
+    startY = e.touches[0].clientY;
+    currentDeltaY = 0;
+    isDragging = false; // touchmoveで条件を満たした時点で初めてtrueにする
+  }, { passive: true });
+
+  box.addEventListener("touchmove", (e) => {
+    if (e.touches.length !== 1) return;
+    const deltaY = e.touches[0].clientY - startY;
+    if (!isDragging) {
+      // まだドラッグ確定前：下方向へのスワイプ、かつ内容が一番上までスクロールされている場合のみドラッグを開始する
+      if (deltaY > 0 && box.scrollTop <= 0) {
+        isDragging = true;
+      } else {
+        return; // 上方向へのスワイプや、まだ内容の途中の場合は通常のスクロールに任せる
+      }
+    }
+    currentDeltaY = Math.max(0, deltaY);
+    box.style.transition = "none";
+    box.style.transform = `translateY(${currentDeltaY}px)`;
+    e.preventDefault(); // ドラッグ中はページ全体のバウンススクロールを防ぐ
+  }, { passive: false });
+
+  box.addEventListener("touchend", () => {
+    if (!isDragging) return;
+    isDragging = false;
+    box.style.transition = "transform 200ms ease";
+    if (currentDeltaY > DISMISS_THRESHOLD) {
+      box.style.transform = `translateY(100%)`;
+      setTimeout(() => {
+        Dialog.close(dialogId);
+        box.style.transition = "";
+        box.style.transform = "";
+      }, 200);
+    } else {
+      box.style.transform = "";
+    }
+    currentDeltaY = 0;
+  });
+  box.addEventListener("touchcancel", () => {
+    if (!isDragging) return;
+    isDragging = false;
+    box.style.transition = "transform 200ms ease";
+    box.style.transform = "";
+    currentDeltaY = 0;
+  });
+}
+
 /* ---------- PlayerManager：プレイヤーのCRUD（第3章 準拠） ---------- */
 const PlayerManager = (() => {
   function getAllActive() {
@@ -13874,6 +13939,9 @@ const Controller = (() => {
     document.getElementById("stats-list-share-icon-btn").addEventListener("click", openStatsListSharePreview);
     document.getElementById("player-detail-close").addEventListener("click", () => Dialog.close("player-detail-dialog-overlay"));
     document.getElementById("player-detail-share-btn").addEventListener("click", openPlayerDetailSharePreview);
+    // 対局履歴の詳細・個人成績の詳細は、下スワイプで指に追従するように閉じられるようにする
+    enableSwipeToDismiss("session-detail-dialog-overlay");
+    enableSwipeToDismiss("player-detail-dialog-overlay");
     renderStatsScreen();
 
     /* ===== Phase6: 履歴編集 ===== */
