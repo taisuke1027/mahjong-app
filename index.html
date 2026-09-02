@@ -2595,7 +2595,7 @@ const I18N = {
     viewmode_list: "個人成績", viewmode_board: "ランキング", viewmode_score: "集計データ",
     label_period: "期間", label_point_display: "表示するポイント",
     point_normal: "ポイント", point_rate: "ポイント（レート込み）",
-    period_today: "今日", period_month: "今月", period_year: "今年", period_all: "累計", label_filter_conditions: "絞り込み条件", label_all_players_summary: "全員", label_n_players_selected: "{0}人選択中",
+    period_today: "今日", period_month: "今月", period_year: "今年", period_all: "累計", label_filter_conditions: "絞り込み条件", label_all_players_summary: "全員", label_n_players_selected: "{0}人選択中", period_custom: "カスタム",
     placeholder_search_history: "日付・プレイヤーで検索",
     sort_newest: "新しい順", sort_oldest: "古い順",
     gametype_all: "すべて",
@@ -2805,7 +2805,7 @@ const I18N = {
     viewmode_list: "Individual Stats", viewmode_board: "Rankings", viewmode_score: "Aggregate Data",
     label_period: "Period", label_point_display: "Points to Show",
     point_normal: "Points", point_rate: "Points (with rate)",
-    period_today: "Today", period_month: "This Month", period_year: "This Year", period_all: "All-Time", label_filter_conditions: "Filters", label_all_players_summary: "All players", label_n_players_selected: "{0} selected",
+    period_today: "Today", period_month: "This Month", period_year: "This Year", period_all: "All-Time", label_filter_conditions: "Filters", label_all_players_summary: "All players", label_n_players_selected: "{0} selected", period_custom: "Custom",
     placeholder_search_history: "Search by date or player",
     sort_newest: "Newest", sort_oldest: "Oldest",
     gametype_all: "All",
@@ -3015,7 +3015,7 @@ const I18N = {
     viewmode_list: "个人成绩", viewmode_board: "排行榜", viewmode_score: "汇总数据",
     label_period: "期间", label_point_display: "显示的积分",
     point_normal: "积分", point_rate: "积分（含费率）",
-    period_today: "今天", period_month: "本月", period_year: "今年", period_all: "累计", label_filter_conditions: "筛选条件", label_all_players_summary: "全员", label_n_players_selected: "已选{0}人",
+    period_today: "今天", period_month: "本月", period_year: "今年", period_all: "累计", label_filter_conditions: "筛选条件", label_all_players_summary: "全员", label_n_players_selected: "已选{0}人", period_custom: "自定义",
     placeholder_search_history: "按日期・玩家搜索",
     sort_newest: "最新排序", sort_oldest: "最早排序",
     gametype_all: "全部",
@@ -3225,7 +3225,7 @@ const I18N = {
     viewmode_list: "個人成績", viewmode_board: "排行榜", viewmode_score: "彙總數據",
     label_period: "期間", label_point_display: "顯示的點數",
     point_normal: "點數", point_rate: "點數（含費率）",
-    period_today: "今天", period_month: "本月", period_year: "今年", period_all: "累計", label_filter_conditions: "篩選條件", label_all_players_summary: "全員", label_n_players_selected: "已選{0}人",
+    period_today: "今天", period_month: "本月", period_year: "今年", period_all: "累計", label_filter_conditions: "篩選條件", label_all_players_summary: "全員", label_n_players_selected: "已選{0}人", period_custom: "自訂",
     placeholder_search_history: "依日期・玩家搜尋",
     sort_newest: "最新排序", sort_oldest: "最舊排序",
     gametype_all: "全部",
@@ -3435,7 +3435,7 @@ const I18N = {
     viewmode_list: "개인 성적", viewmode_board: "랭킹", viewmode_score: "집계 데이터",
     label_period: "기간", label_point_display: "표시할 포인트",
     point_normal: "포인트", point_rate: "포인트（레이트 포함）",
-    period_today: "오늘", period_month: "이번 달", period_year: "올해", period_all: "누계", label_filter_conditions: "필터 조건", label_all_players_summary: "전원", label_n_players_selected: "{0}명 선택됨",
+    period_today: "오늘", period_month: "이번 달", period_year: "올해", period_all: "누계", label_filter_conditions: "필터 조건", label_all_players_summary: "전원", label_n_players_selected: "{0}명 선택됨", period_custom: "사용자 지정",
     placeholder_search_history: "날짜・플레이어로 검색",
     sort_newest: "최신순", sort_oldest: "오래된순",
     gametype_all: "전체",
@@ -7372,8 +7372,9 @@ const Controller = (() => {
   let statsSelectedPlayerIds = []; // 空配列＝全員対象（リスト・ボード・ランキング共通）
   // 履歴画面の「プレイヤー」「麻雀種別」「期間」は statsSelectedPlayerIds / statsGameType / stats-from-date / stats-to-date を共有する
   let historySortOrder = "newest"; // "newest" | "oldest"
-  // 成績・履歴画面の「絞り込み条件」エリアの開閉状態（初見でもすぐデータが見えるよう、初期状態は全て閉じておく）
-  let filterCollapseExpanded = { score: false, ranking: false, history: false };
+  // 成績・履歴画面の「絞り込み条件」エリアの開閉状態（初見でもすぐデータが見えるよう、初期状態は閉じておく）。
+  // スコア／ランキング／履歴の3画面はこの状態を共有し、どこで開閉してもページ移動後に引き継がれる
+  let filterCollapseExpanded = false;
   let pendingShareCanvas = null;
   let pendingShareBlob = null;
   let pendingShareFilename = null;
@@ -9417,6 +9418,17 @@ const Controller = (() => {
     }
   }
 
+  /* 現在のfrom/toが「今日・今月・今年・累計」のどれと一致するかを判定し、一致するプリセット名を返す。
+     どれとも一致しなければ「カスタム」として扱う */
+  function matchPeriodPresetLabel(from, to) {
+    const presets = [["today", "period_today"], ["month", "period_month"], ["year", "period_year"], ["all", "period_all"]];
+    for (const [preset, labelKey] of presets) {
+      const range = computePresetDateRange(preset);
+      if (range.from === from && range.to === to) return t(labelKey);
+    }
+    return t("period_custom");
+  }
+
   /* 現在の「麻雀種別・期間・プレイヤー」の絞り込み条件を、折りたたみ時の1行要約として組み立てる */
   function computeSharedConditionsSummary() {
     const gameTypeLabel = statsGameType === "yonma" ? t("gametype_yonma") : t("gametype_sanma");
@@ -9424,10 +9436,7 @@ const Controller = (() => {
     const toInput = document.getElementById("stats-to-date");
     const from = fromInput ? fromInput.value : "";
     const to = toInput ? toInput.value : "";
-    let periodLabel;
-    if (!from && !to) periodLabel = t("period_all");
-    else if (from && to) periodLabel = from === to ? from : `${from}〜${to}`;
-    else periodLabel = from ? `${from}〜` : `〜${to}`;
+    const periodLabel = matchPeriodPresetLabel(from, to);
     const playerLabel = statsSelectedPlayerIds.length === 0
       ? t("label_all_players_summary")
       : tf("label_n_players_selected", statsSelectedPlayerIds.length);
@@ -9438,7 +9447,7 @@ const Controller = (() => {
   function renderFilterCollapseState(key) {
     const content = document.getElementById(`filter-collapse-content-${key}`);
     if (!content) return;
-    const expanded = filterCollapseExpanded[key];
+    const expanded = filterCollapseExpanded;
     content.style.display = expanded ? "block" : "none";
     const chevronEl = document.getElementById(`filter-chevron-${key}`);
     if (chevronEl) chevronEl.textContent = expanded ? "▴" : "▾";
@@ -13837,9 +13846,8 @@ const Controller = (() => {
     /* ===== Phase5: 成績 ===== */
     document.querySelectorAll("[data-filter-toggle]").forEach(btn => {
       btn.addEventListener("click", () => {
-        const key = btn.dataset.filterToggle;
-        filterCollapseExpanded[key] = !filterCollapseExpanded[key];
-        renderFilterCollapseState(key);
+        filterCollapseExpanded = !filterCollapseExpanded;
+        renderAllFilterCollapseStates();
       });
     });
     document.querySelectorAll("#stats-viewmode-segmented .segmented-btn").forEach(btn => {
