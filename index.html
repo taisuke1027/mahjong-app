@@ -6284,26 +6284,9 @@ const Share = (() => {
   function generateSessionImage({ session, rule, finishedGames, players, playerImages }) {
     const width = 1080;
     const marginX = 60;
-    const nameColWidth = 264;
-    const GAMES_PER_BLOCK = 6; // 半荘ごとに改行する数
     const chipEnabled = !!(rule && rule.chipEnabled);
     const rate = rule && Number.isFinite(rule.rate) ? rule.rate : 1;
-    const totalColWidth = 115;
-    const extraColumnCount = (chipEnabled ? 1 : 0) + 2; // （チップ＋）小計＋合計
     const rowHeight = 128;
-    const blockGap = 30;
-
-    const blocks = [];
-    for (let i = 0; i < finishedGames.length; i += GAMES_PER_BLOCK) {
-      blocks.push(finishedGames.slice(i, i + GAMES_PER_BLOCK));
-    }
-    if (blocks.length === 0) blocks.push([]);
-    // 最後のブロックに「小計・合計（＋チップ）」を並べると列がはみ出してしまう場合だけ、
-    // 半荘の列数はそのまま（6列ずつ均等）にしておき、小計・合計だけを専用の行として分離する
-    const lastBlockGameCount = blocks[blocks.length - 1].length;
-    if (blocks.length > 1 && lastBlockGameCount + extraColumnCount > GAMES_PER_BLOCK) {
-      blocks.push([]);
-    }
 
     const chipPointOf = (playerId) => chipEnabled ? (((session.chips && session.chips[playerId]) || 0) * rule.chipRate) : 0;
 
@@ -6419,9 +6402,21 @@ const Share = (() => {
       venueFeeSharesByPlayer[p.id] = venueFeeBaseShare + (p.id === venueFeeTopPlayerId ? venueFeeRemainder : 0);
     });
 
-    // 半荘の列幅は、行をまたいでも縦の位置が揃うよう、常に1行分（GAMES_PER_BLOCK列）を基準にした固定幅にする。
-    // 全体が1行に収まる場合（blocks.length === 1）だけは、実際の列数に合わせて幅いっぱいに広げる。
-    const fullRowGameColWidth = Math.floor((width - marginX * 2 - nameColWidth) / GAMES_PER_BLOCK);
+    // プレイヤー列の幅は、実際の参加人数に応じて均等に割る（列＝プレイヤー、行＝半荘のレイアウトに変更したため、
+    // これまでのような「6半荘ごとに改行」といったブロック分割は不要になった）
+    const rowLabelColWidth = 150; // 「半1」「小計」「合計」などの行見出し列の幅
+    const playerColWidth = Math.floor((width - marginX * 2 - rowLabelColWidth) / Math.max(players.length, 1));
+
+    /* 列見出し（プレイヤー名）が列幅に収まらない場合、末尾を省略して幅内に収める */
+    function fitTextToWidth(ctx, text, maxWidth, font) {
+      ctx.font = font;
+      if (ctx.measureText(text).width <= maxWidth) return text;
+      let truncated = text;
+      while (truncated.length > 1 && ctx.measureText(truncated + "…").width > maxWidth) {
+        truncated = truncated.slice(0, -1);
+      }
+      return truncated + "…";
+    }
 
     /* 描画処理そのものを「高さの計測」と「実際の描画」の両方で使い回すことで、
        事前計算した高さと実際の描画内容が必ず一致するようにする（ズレによる見切れ防止） */
@@ -6469,120 +6464,120 @@ const Share = (() => {
         y += 4;
       }
 
-      blocks.forEach((block, blockIndex) => {
-        const isLastBlock = blockIndex === blocks.length - 1;
-        // 列幅は「1行あたり6列」を基準にした固定幅にする（行をまたいでも縦の位置が揃うように）。
-        // 全体が1行に収まる場合（blocks.length === 1）だけは、実際の列数に合わせて幅いっぱいに広げる
-        const reservedForTotals = isLastBlock ? extraColumnCount * totalColWidth : 0;
-        const gameColWidth = blocks.length > 1
-          ? fullRowGameColWidth
-          : Math.floor((width - marginX * 2 - nameColWidth - reservedForTotals) / Math.max(block.length, 1));
-        // チップ・小計・合計は、右端に揃えるのではなく、半荘の列（固定幅）の続きとして配置する
-        const totalsColStartX = marginX + nameColWidth + gameColWidth * block.length;
-        // 場代が設定されている場合、最終ブロックの行だけ「合計（場代込）」の分だけ縦に少し広げる
-        const effectiveRowHeight = (isLastBlock && showVenueFee) ? rowHeight + 34 : rowHeight;
-        // 場代が設定されている場合、「合計」見出しの下に「(場代込)」の1行を追加する分の高さ
-        const headerExtraHeight = (isLastBlock && showVenueFee) ? 26 : 0;
-
-        if (isLastBlock) {
-          // 小計・合計は他の半荘ごとのポイントと区別できるよう背景色を敷く。
-          // 合計の方がより濃い色になるよう、小計・合計で2段階に分けて塗る
-          // （罫線の色は表全体の罫線と統一する。上端は見出し文字の高さ＋フォント半分程度、
-          //   下端は最後のプレイヤー行の文字の高さ＋フォント半分程度の余白を持たせる）
-          const headerFontSize = 28; // 「小計」「合計」見出しのフォントサイズ
-          const valueFontSize = 41; // 合計欄の数値（最大フォント）のサイズ
-          const topPad = headerFontSize * 0.8 + headerFontSize * 0.5; // 文字の上端 + フォント半分の余白
-          const bottomPad = valueFontSize * 0.25 + valueFontSize * 0.5; // 文字の下端 + フォント半分の余白
-          const lastPlayerRowY = y + 20 + headerExtraHeight + effectiveRowHeight * 0.5 + (players.length - 1) * effectiveRowHeight;
-          const rectTop = y - topPad;
-          const rectBottom = lastPlayerRowY + bottomPad;
-          const blockHeight = rectBottom - rectTop;
-          const subtotalX = totalsColStartX + (chipEnabled ? totalColWidth : 0);
-          ctx.fillStyle = "rgba(0,122,255,0.055)";
-          ctx.fillRect(subtotalX, rectTop, totalColWidth, blockHeight);
-          ctx.fillStyle = "rgba(0,122,255,0.16)";
-          ctx.fillRect(subtotalX + totalColWidth, rectTop, totalColWidth, blockHeight);
-          ctx.strokeStyle = "#DEE2E6"; ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.moveTo(subtotalX, rectTop); ctx.lineTo(subtotalX, rectTop + blockHeight); ctx.stroke();
-        }
-
-        let hx = marginX + nameColWidth;
-        block.forEach(g => {
-          drawText(ctx, `半${g.gameNumber}`, hx + gameColWidth / 2, y, { font: "28px sans-serif", color: "#6C757D", align: "center" });
-          hx += gameColWidth;
-        });
-        if (isLastBlock) {
-          hx = totalsColStartX;
-          if (chipEnabled) {
-            drawText(ctx, "チップ", hx + totalColWidth / 2, y, { font: "28px sans-serif", color: "#6C757D", align: "center" });
-            hx += totalColWidth;
-          }
-          drawText(ctx, "小計", hx + totalColWidth / 2, y, { font: "28px sans-serif", color: "#6C757D", align: "center" });
-          hx += totalColWidth;
-          drawText(ctx, "合計", hx + totalColWidth / 2, y, { font: "bold 30px sans-serif", align: "center" });
-          if (showVenueFee) {
-            drawText(ctx, "(場代込)", hx + totalColWidth / 2, y + 27, { font: "22px sans-serif", color: "#6C757D", align: "center" });
-          }
-        }
-        y += 20 + headerExtraHeight;
-
-        ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(width - marginX, y); ctx.stroke();
-        y += rowHeight * 0.5;
-
-        players.forEach(p => {
-          drawAvatarCircle(ctx, p, marginX + 22, y - 9, 22, playerImages, "20px sans-serif");
-          drawText(ctx, p.name, marginX + 54, y, { font: "41px sans-serif" });
-
-          let cx = marginX + nameColWidth;
-          block.forEach(g => {
-            const r = g.results.find(res => res.playerId === p.id);
-            const tp = r ? r.totalPoint : 0;
-            const gotYakuman = g.yakumanRecords && g.yakumanRecords.some(rec => rec.playerId === p.id);
-            // トビ：その半荘で自分の最終持ち点がマイナスになった（箱下）
-            const isTobi = r && r.finalPoint < 0;
-            // トバシ：その半荘で「飛ばした側」として記録されたプレイヤー（対局記録時に指定した飛び賞のtobiPointがプラスの人）
-            const isTobashi = r && r.tobiPoint > 0;
-            let marks = "";
-            if (gotYakuman) marks += "★";
-            if (isTobi) marks += "◆";
-            if (isTobashi) marks += "▲";
-            drawText(ctx, `${tp > 0 ? "+" : ""}${tp}${marks}`, cx + gameColWidth / 2, y, {
-              font: "36px sans-serif",
-              color: gotYakuman ? "#FF9500" : (isTobi ? "#DC3545" : (tp > 0 ? "#007AFF" : (tp < 0 ? "#DC3545" : "#6C757D"))),
-              align: "center"
-            });
-            cx += gameColWidth;
-          });
-          if (isLastBlock) {
-            cx = totalsColStartX;
-            if (chipEnabled) {
-              const cp = chipPointOf(p.id);
-              drawText(ctx, `${cp > 0 ? "+" : ""}${cp}`, cx + totalColWidth / 2, y, {
-                font: "36px sans-serif", color: cp > 0 ? "#007AFF" : (cp < 0 ? "#DC3545" : "#6C757D"), align: "center"
-              });
-              cx += totalColWidth;
-            }
-            const subtotal = subtotalsByPlayer[p.id];
-            drawText(ctx, `${subtotal > 0 ? "+" : ""}${subtotal}`, cx + totalColWidth / 2, y, {
-              font: "36px sans-serif", color: subtotal > 0 ? "#007AFF" : (subtotal < 0 ? "#DC3545" : "#6C757D"), align: "center"
-            });
-            cx += totalColWidth;
-            const total = totalsByPlayer[p.id];
-            drawText(ctx, `${total > 0 ? "+" : ""}${total}`, cx + totalColWidth / 2, y, {
-              font: "bold 41px sans-serif", color: total > 0 ? "#007AFF" : (total < 0 ? "#DC3545" : "#212529"), align: "center"
-            });
-            if (showVenueFee) {
-              const totalWithFee = Math.round(total - venueFeeSharesByPlayer[p.id]);
-              drawText(ctx, `(${totalWithFee > 0 ? "+" : ""}${totalWithFee})`, cx + totalColWidth / 2, y + 32, {
-                font: "22px sans-serif", color: totalWithFee > 0 ? "#007AFF" : (totalWithFee < 0 ? "#DC3545" : "#6C757D"), align: "center"
-              });
-            }
-          }
-          y += effectiveRowHeight;
-        });
-
-        if (!isLastBlock) y += blockGap;
+      // ===== ヘッダー行：各プレイヤーの列見出し（アバター＋名前） =====
+      const colHeaderAvatarR = 22;
+      const colHeaderRowHeight = 80;
+      let hx = marginX + rowLabelColWidth;
+      players.forEach(p => {
+        const colCenterX = hx + playerColWidth / 2;
+        const nameFont = "bold 26px sans-serif";
+        const nameMaxWidth = playerColWidth - 16;
+        const fittedName = fitTextToWidth(ctx, p.name, nameMaxWidth, nameFont);
+        drawAvatarCircle(ctx, p, colCenterX, y + colHeaderAvatarR, colHeaderAvatarR, playerImages, "20px sans-serif");
+        drawText(ctx, fittedName, colCenterX, y + colHeaderAvatarR * 2 + 24, { font: nameFont, align: "center" });
+        hx += playerColWidth;
       });
+      y += colHeaderRowHeight;
+
+      ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(width - marginX, y); ctx.stroke();
+      y += rowHeight * 0.5;
+
+      // ===== 半荘ごとの行 =====
+      finishedGames.forEach(g => {
+        drawText(ctx, `半${g.gameNumber}`, marginX + rowLabelColWidth / 2, y, { font: "28px sans-serif", color: "#6C757D", align: "center" });
+        let cx = marginX + rowLabelColWidth;
+        players.forEach(p => {
+          const r = g.results.find(res => res.playerId === p.id);
+          const tp = r ? r.totalPoint : 0;
+          const gotYakuman = g.yakumanRecords && g.yakumanRecords.some(rec => rec.playerId === p.id);
+          // トビ：その半荘で自分の最終持ち点がマイナスになった（箱下）
+          const isTobi = r && r.finalPoint < 0;
+          // トバシ：その半荘で「飛ばした側」として記録されたプレイヤー（対局記録時に指定した飛び賞のtobiPointがプラスの人）
+          const isTobashi = r && r.tobiPoint > 0;
+          let marks = "";
+          if (gotYakuman) marks += "★";
+          if (isTobi) marks += "◆";
+          if (isTobashi) marks += "▲";
+          drawText(ctx, `${tp > 0 ? "+" : ""}${tp}${marks}`, cx + playerColWidth / 2, y, {
+            font: "36px sans-serif",
+            color: gotYakuman ? "#FF9500" : (isTobi ? "#DC3545" : (tp > 0 ? "#007AFF" : (tp < 0 ? "#DC3545" : "#6C757D"))),
+            align: "center"
+          });
+          cx += playerColWidth;
+        });
+        y += rowHeight;
+      });
+
+      // ===== チップ・小計・合計の行（「小計」「合計」の行だけ、他の半荘の行と区別できるよう背景色を敷く。
+      //       チップの行には敷かない。合計の方がより濃い色になるよう2段階に分ける） =====
+      const totalRowHeight = rowHeight; // チップ・小計の行の高さ
+      const grandTotalRowHeight = showVenueFee ? rowHeight + 34 : rowHeight; // 合計の行は（場代込）分だけ少し高くする
+
+      {
+        const headerFontSize = 28;
+        const valueFontSize = 41;
+        const topPad = headerFontSize * 0.8 + headerFontSize * 0.5;
+        const bottomPad = valueFontSize * 0.25 + valueFontSize * 0.5;
+        const subtotalRowY = y + (chipEnabled ? totalRowHeight : 0); // 小計行のY
+        const grandTotalRowY = subtotalRowY + totalRowHeight; // 合計行のY
+        const rectTop = subtotalRowY - topPad;
+        const midY = grandTotalRowY - topPad; // 小計行の下端＝合計行の上端
+        const rectBottom = grandTotalRowY + bottomPad;
+        ctx.fillStyle = "rgba(0,122,255,0.055)";
+        ctx.fillRect(marginX, rectTop, width - marginX * 2, midY - rectTop);
+        ctx.fillStyle = "rgba(0,122,255,0.16)";
+        ctx.fillRect(marginX, midY, width - marginX * 2, rectBottom - midY);
+        ctx.strokeStyle = "#DEE2E6"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(marginX, midY); ctx.lineTo(width - marginX, midY); ctx.stroke();
+      }
+
+      if (chipEnabled) {
+        drawText(ctx, "チップ", marginX + rowLabelColWidth / 2, y, { font: "28px sans-serif", color: "#6C757D", align: "center" });
+        let cx = marginX + rowLabelColWidth;
+        players.forEach(p => {
+          const cp = chipPointOf(p.id);
+          drawText(ctx, `${cp > 0 ? "+" : ""}${cp}`, cx + playerColWidth / 2, y, {
+            font: "36px sans-serif", color: cp > 0 ? "#007AFF" : (cp < 0 ? "#DC3545" : "#6C757D"), align: "center"
+          });
+          cx += playerColWidth;
+        });
+        y += totalRowHeight;
+      }
+
+      drawText(ctx, "小計", marginX + rowLabelColWidth / 2, y, { font: "28px sans-serif", color: "#6C757D", align: "center" });
+      {
+        let cx = marginX + rowLabelColWidth;
+        players.forEach(p => {
+          const subtotal = subtotalsByPlayer[p.id];
+          drawText(ctx, `${subtotal > 0 ? "+" : ""}${subtotal}`, cx + playerColWidth / 2, y, {
+            font: "36px sans-serif", color: subtotal > 0 ? "#007AFF" : (subtotal < 0 ? "#DC3545" : "#6C757D"), align: "center"
+          });
+          cx += playerColWidth;
+        });
+      }
+      y += totalRowHeight;
+
+      drawText(ctx, "合計", marginX + rowLabelColWidth / 2, y, { font: "bold 30px sans-serif", align: "center" });
+      if (showVenueFee) {
+        drawText(ctx, "(場代込)", marginX + rowLabelColWidth / 2, y + 27, { font: "20px sans-serif", color: "#6C757D", align: "center" });
+      }
+      {
+        let cx = marginX + rowLabelColWidth;
+        players.forEach(p => {
+          const total = totalsByPlayer[p.id];
+          drawText(ctx, `${total > 0 ? "+" : ""}${total}`, cx + playerColWidth / 2, y, {
+            font: "bold 41px sans-serif", color: total > 0 ? "#007AFF" : (total < 0 ? "#DC3545" : "#212529"), align: "center"
+          });
+          if (showVenueFee) {
+            const totalWithFee = Math.round(total - venueFeeSharesByPlayer[p.id]);
+            drawText(ctx, `(${totalWithFee > 0 ? "+" : ""}${totalWithFee})`, cx + playerColWidth / 2, y + 32, {
+              font: "22px sans-serif", color: totalWithFee > 0 ? "#007AFF" : (totalWithFee < 0 ? "#DC3545" : "#6C757D"), align: "center"
+            });
+          }
+          cx += playerColWidth;
+        });
+      }
+      y += grandTotalRowHeight;
 
       y += 30;
       ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(width - marginX, y); ctx.stroke();
