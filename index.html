@@ -429,6 +429,31 @@ body {
 }
 .filter-box label:first-child { margin-top: 0; }
 
+/* 成績・履歴画面：初見でもすぐ下のデータが目に入るよう、絞り込み条件エリアは初期状態で折りたたんでおく */
+.filter-collapse-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.filter-collapse-toggle__label { font-size: 13px; font-weight: 700; color: var(--text-sub); flex-shrink: 0; }
+.filter-collapse-toggle__summary {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.filter-collapse-toggle__chevron { flex-shrink: 0; color: var(--text-sub); font-size: 12px; transition: transform 0.15s ease; }
+.filter-collapse-content { margin-top: 14px; }
+
 /* 点数計算・待ち牌確認：鳴き牌／牌選択などの入力エリアを、対局履歴のフィルタエリアと同じ見た目で囲む */
 .sc-field-boxed {
   background: var(--filter-bg);
@@ -1553,7 +1578,14 @@ input[type="number"] {
       </div>
 
       <div class="filter-box">
-        <div id="stats-shared-conditions-anchor-history"></div>
+        <button type="button" class="filter-collapse-toggle" data-filter-toggle="history">
+          <span class="filter-collapse-toggle__label" data-i18n="label_filter_conditions">絞り込み条件</span>
+          <span class="filter-collapse-toggle__summary" id="filter-summary-history"></span>
+          <span class="filter-collapse-toggle__chevron" id="filter-chevron-history">▾</span>
+        </button>
+        <div class="filter-collapse-content" id="filter-collapse-content-history" style="display:none;">
+          <div id="stats-shared-conditions-anchor-history"></div>
+        </div>
       </div>
 
       <div style="height:20px;"></div>
@@ -1584,6 +1616,12 @@ input[type="number"] {
 
       <div id="stats-score-view">
         <div class="filter-box">
+          <button type="button" class="filter-collapse-toggle" data-filter-toggle="score">
+            <span class="filter-collapse-toggle__label" data-i18n="label_filter_conditions">絞り込み条件</span>
+            <span class="filter-collapse-toggle__summary" id="filter-summary-score"></span>
+            <span class="filter-collapse-toggle__chevron" id="filter-chevron-score">▾</span>
+          </button>
+          <div class="filter-collapse-content" id="filter-collapse-content-score" style="display:none;">
           <div id="stats-shared-conditions-block">
             <label data-i18n="label_gametype" style="display:block; margin-bottom:8px;">麻雀種別</label>
             <div class="segmented segmented--compact" id="stats-gametype-segmented" style="margin-bottom: 20px;">
@@ -1620,6 +1658,7 @@ input[type="number"] {
             <button type="button" class="segmented-btn" data-pointtype="normal" data-i18n="point_normal">ポイント</button>
             <button type="button" class="segmented-btn" data-pointtype="rate" data-i18n="point_rate">ポイント（レート込み）</button>
           </div>
+          </div>
         </div>
 
         <div style="height:20px;"></div>
@@ -1651,7 +1690,14 @@ input[type="number"] {
 
       <div id="stats-ranking-view" style="display:none;">
         <div class="filter-box">
-          <div id="stats-shared-conditions-anchor-ranking"></div>
+          <button type="button" class="filter-collapse-toggle" data-filter-toggle="ranking">
+            <span class="filter-collapse-toggle__label" data-i18n="label_filter_conditions">絞り込み条件</span>
+            <span class="filter-collapse-toggle__summary" id="filter-summary-ranking"></span>
+            <span class="filter-collapse-toggle__chevron" id="filter-chevron-ranking">▾</span>
+          </button>
+          <div class="filter-collapse-content" id="filter-collapse-content-ranking" style="display:none;">
+            <div id="stats-shared-conditions-anchor-ranking"></div>
+          </div>
         </div>
 
         <div style="height:20px;"></div>
@@ -2549,7 +2595,7 @@ const I18N = {
     viewmode_list: "個人成績", viewmode_board: "ランキング", viewmode_score: "集計データ",
     label_period: "期間", label_point_display: "表示するポイント",
     point_normal: "ポイント", point_rate: "ポイント（レート込み）",
-    period_today: "今日", period_month: "今月", period_year: "今年", period_all: "累計",
+    period_today: "今日", period_month: "今月", period_year: "今年", period_all: "累計", label_filter_conditions: "絞り込み条件", label_all_players_summary: "全員", label_n_players_selected: "{0}人選択中",
     placeholder_search_history: "日付・プレイヤーで検索",
     sort_newest: "新しい順", sort_oldest: "古い順",
     gametype_all: "すべて",
@@ -2759,7 +2805,7 @@ const I18N = {
     viewmode_list: "Individual Stats", viewmode_board: "Rankings", viewmode_score: "Aggregate Data",
     label_period: "Period", label_point_display: "Points to Show",
     point_normal: "Points", point_rate: "Points (with rate)",
-    period_today: "Today", period_month: "This Month", period_year: "This Year", period_all: "All-Time",
+    period_today: "Today", period_month: "This Month", period_year: "This Year", period_all: "All-Time", label_filter_conditions: "Filters", label_all_players_summary: "All players", label_n_players_selected: "{0} selected",
     placeholder_search_history: "Search by date or player",
     sort_newest: "Newest", sort_oldest: "Oldest",
     gametype_all: "All",
@@ -2969,7 +3015,7 @@ const I18N = {
     viewmode_list: "个人成绩", viewmode_board: "排行榜", viewmode_score: "汇总数据",
     label_period: "期间", label_point_display: "显示的积分",
     point_normal: "积分", point_rate: "积分（含费率）",
-    period_today: "今天", period_month: "本月", period_year: "今年", period_all: "累计",
+    period_today: "今天", period_month: "本月", period_year: "今年", period_all: "累计", label_filter_conditions: "筛选条件", label_all_players_summary: "全员", label_n_players_selected: "已选{0}人",
     placeholder_search_history: "按日期・玩家搜索",
     sort_newest: "最新排序", sort_oldest: "最早排序",
     gametype_all: "全部",
@@ -3179,7 +3225,7 @@ const I18N = {
     viewmode_list: "個人成績", viewmode_board: "排行榜", viewmode_score: "彙總數據",
     label_period: "期間", label_point_display: "顯示的點數",
     point_normal: "點數", point_rate: "點數（含費率）",
-    period_today: "今天", period_month: "本月", period_year: "今年", period_all: "累計",
+    period_today: "今天", period_month: "本月", period_year: "今年", period_all: "累計", label_filter_conditions: "篩選條件", label_all_players_summary: "全員", label_n_players_selected: "已選{0}人",
     placeholder_search_history: "依日期・玩家搜尋",
     sort_newest: "最新排序", sort_oldest: "最舊排序",
     gametype_all: "全部",
@@ -3389,7 +3435,7 @@ const I18N = {
     viewmode_list: "개인 성적", viewmode_board: "랭킹", viewmode_score: "집계 데이터",
     label_period: "기간", label_point_display: "표시할 포인트",
     point_normal: "포인트", point_rate: "포인트（레이트 포함）",
-    period_today: "오늘", period_month: "이번 달", period_year: "올해", period_all: "누계",
+    period_today: "오늘", period_month: "이번 달", period_year: "올해", period_all: "누계", label_filter_conditions: "필터 조건", label_all_players_summary: "전원", label_n_players_selected: "{0}명 선택됨",
     placeholder_search_history: "날짜・플레이어로 검색",
     sort_newest: "최신순", sort_oldest: "오래된순",
     gametype_all: "전체",
@@ -7326,6 +7372,8 @@ const Controller = (() => {
   let statsSelectedPlayerIds = []; // 空配列＝全員対象（リスト・ボード・ランキング共通）
   // 履歴画面の「プレイヤー」「麻雀種別」「期間」は statsSelectedPlayerIds / statsGameType / stats-from-date / stats-to-date を共有する
   let historySortOrder = "newest"; // "newest" | "oldest"
+  // 成績・履歴画面の「絞り込み条件」エリアの開閉状態（初見でもすぐデータが見えるよう、初期状態は全て閉じておく）
+  let filterCollapseExpanded = { score: false, ranking: false, history: false };
   let pendingShareCanvas = null;
   let pendingShareBlob = null;
   let pendingShareFilename = null;
@@ -9365,8 +9413,41 @@ const Controller = (() => {
     } else if (destination === "history") {
       document.getElementById("stats-shared-conditions-anchor-history").after(block);
     } else {
-      document.querySelector("#stats-score-view .filter-box").prepend(block);
+      document.getElementById("filter-collapse-content-score").prepend(block);
     }
+  }
+
+  /* 現在の「麻雀種別・期間・プレイヤー」の絞り込み条件を、折りたたみ時の1行要約として組み立てる */
+  function computeSharedConditionsSummary() {
+    const gameTypeLabel = statsGameType === "yonma" ? t("gametype_yonma") : t("gametype_sanma");
+    const fromInput = document.getElementById("stats-from-date");
+    const toInput = document.getElementById("stats-to-date");
+    const from = fromInput ? fromInput.value : "";
+    const to = toInput ? toInput.value : "";
+    let periodLabel;
+    if (!from && !to) periodLabel = t("period_all");
+    else if (from && to) periodLabel = from === to ? from : `${from}〜${to}`;
+    else periodLabel = from ? `${from}〜` : `〜${to}`;
+    const playerLabel = statsSelectedPlayerIds.length === 0
+      ? t("label_all_players_summary")
+      : tf("label_n_players_selected", statsSelectedPlayerIds.length);
+    return `${gameTypeLabel}・${periodLabel}・${playerLabel}`;
+  }
+
+  /* 「絞り込み条件」エリアの開閉状態・要約テキストをDOMへ反映する（key: "score" | "ranking" | "history"） */
+  function renderFilterCollapseState(key) {
+    const content = document.getElementById(`filter-collapse-content-${key}`);
+    if (!content) return;
+    const expanded = filterCollapseExpanded[key];
+    content.style.display = expanded ? "block" : "none";
+    const chevronEl = document.getElementById(`filter-chevron-${key}`);
+    if (chevronEl) chevronEl.textContent = expanded ? "▴" : "▾";
+    const summaryEl = document.getElementById(`filter-summary-${key}`);
+    if (summaryEl) summaryEl.textContent = computeSharedConditionsSummary();
+  }
+
+  function renderAllFilterCollapseStates() {
+    ["score", "ranking", "history"].forEach(renderFilterCollapseState);
   }
 
   /* 「プレイヤー」「麻雀種別」「期間」の共有条件が変わったときに、現在表示中のタブ（成績 or 履歴）に応じて
@@ -9500,6 +9581,9 @@ const Controller = (() => {
       renderStatsBoard();
       renderStatsList();
     }
+
+    renderFilterCollapseState("score");
+    renderFilterCollapseState("ranking");
   }
 
   /* スコア画面（麻雀種別・期間・表示するポイント）の選択状態をUIに反映する（ボード・リスト共通） */
@@ -10191,6 +10275,7 @@ const Controller = (() => {
     relocateSharedConditionsBlock("history");
     renderStatsPlayerChips();
     syncStatsScoreControls();
+    renderFilterCollapseState("history");
 
     const container = document.getElementById("history-list");
     const sessions = SessionManager.getAllActive();
@@ -13750,6 +13835,13 @@ const Controller = (() => {
     checkRestoreOnStartup();
 
     /* ===== Phase5: 成績 ===== */
+    document.querySelectorAll("[data-filter-toggle]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.dataset.filterToggle;
+        filterCollapseExpanded[key] = !filterCollapseExpanded[key];
+        renderFilterCollapseState(key);
+      });
+    });
     document.querySelectorAll("#stats-viewmode-segmented .segmented-btn").forEach(btn => {
       btn.addEventListener("click", () => {
         statsViewMode = btn.dataset.viewmode;
