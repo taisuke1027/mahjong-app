@@ -1560,7 +1560,7 @@ input[type="number"] {
         <option value="zh-Hant">繁體中文</option>
         <option value="ko">한국어</option>
       </select>
-      <button class="icon-button" id="theme-toggle" title="ダークモード切替" aria-label="ダークモード切替">🌙</button>
+      <button class="icon-button" id="theme-toggle" title="ダークモード切替" aria-label="ダークモード切替"><img id="theme-toggle-icon" src="icons/theme-moon.png" alt="" style="width:20px; height:20px; display:block;"></button>
     </div>
   </header>
 
@@ -3856,8 +3856,8 @@ const UI = (() => {
 
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme === "dark" ? "dark" : "light");
-    const toggleBtn = document.getElementById("theme-toggle");
-    if (toggleBtn) toggleBtn.textContent = theme === "dark" ? "☀️" : "🌙";
+    const toggleIcon = document.getElementById("theme-toggle-icon");
+    if (toggleIcon) toggleIcon.src = theme === "dark" ? "icons/theme-sun.png" : "icons/theme-moon.png";
     const switchInput = document.getElementById("dark-mode-switch");
     const track = document.getElementById("switch-track");
     const thumb = document.getElementById("switch-thumb");
