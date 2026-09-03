@@ -793,14 +793,6 @@ body {
   color: #fff;
 }
 
-/* 成績画面の「集計データ／個人賞」トグルは、他の選択UIと区別できるよう濃いめの色にする */
-#stats-viewmode-segmented .segmented-btn.is-selected {
-  background: #0051A8;
-}
-[data-theme="dark"] #stats-viewmode-segmented .segmented-btn.is-selected {
-  background: #003D80;
-}
-
 /* プレイヤー選択チップと大きさを揃えるための小型バリエーション（麻雀種別・期間選択に使用） */
 .segmented--compact { border-radius: 18px; }
 .segmented--compact .segmented-btn {
@@ -1594,7 +1586,6 @@ input[type="number"] {
         </div>
       </div>
 
-      <div style="height:20px;"></div>
       <div style="font-size:20px; font-weight:800; margin-bottom:12px;" data-i18n="heading_game_data">対局データ</div>
 
       <div class="segmented segmented--compact" id="history-sort-segmented" style="margin-bottom: var(--gap-card-gap);">
@@ -1667,7 +1658,6 @@ input[type="number"] {
           </div>
         </div>
 
-        <div style="height:20px;"></div>
         <div class="section-header-row" style="margin-bottom:12px;">
           <span class="section-header-title" style="font-size:20px;" data-i18n="viewmode_board">ボード</span>
           <button type="button" class="ranking-row__share-btn" id="stats-board-share-icon-btn" title="共有" aria-label="共有" data-i18n-title="btn_share">
@@ -1706,7 +1696,6 @@ input[type="number"] {
           </div>
         </div>
 
-        <div style="height:20px;"></div>
         <div class="section-header-row" style="margin-bottom:12px;">
           <span class="section-header-title" style="font-size:20px;" data-i18n="viewmode_ranking">ランキング</span>
           <button type="button" class="ranking-row__share-btn" id="stats-ranking-share-icon-btn" title="共有" aria-label="共有" data-i18n-title="btn_share">
