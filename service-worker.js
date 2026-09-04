@@ -1,174 +1,196 @@
-/*
- * 麻雀成績管理アプリ Service Worker
- * 第7章15〜16節：初回アクセス後はオフラインでも完全に利用できるようにする。
- * アプリはCSS/JSをすべてindex.html内に含む単一ファイル構成のため、
- * キャッシュ対象はシェル一式（HTML・Manifest・アイコン）のみでよい。
- *
- * v2でのキャッシュ戦略の変更点（重要）：
- * これまでHTML（index.html含む）もCache First（キャッシュ優先）で配信していたため、
- * アプリを更新してデプロイし直しても、オンライン環境でもブラウザが古いキャッシュを
- * 配信し続けてしまい、修正が反映されない不具合があった。
- * これを解消するため、HTML・ナビゲーション要求は Network First（まずネットワークから
- * 最新を取得し、失敗時のみキャッシュにフォールバック）に変更する。
- * アイコン等の静的ファイルは変更頻度が低いため、引き続き Cache First のままとする。
+/**
+ * service-worker.js
+ * ------------------------------------------------------------------
+ * オフラインでも基本機能（運動記録・資産確認）が使えるように、
+ * アプリシェルとローカルアセットをキャッシュする（33章 ⑤）。
+ * データそのものはlocalStorageに保存されるため、通信状況に
+ * 左右されない。
+ * ------------------------------------------------------------------
  */
 
-const CACHE_VERSION = "v5";
-const CACHE_NAME = `mahjong-app-${CACHE_VERSION}`;
-
-const APP_SHELL = [
+const CACHE_VERSION = "chikutate-v3";
+const CORE_ASSETS = [
   "./",
   "./index.html",
   "./manifest.json",
-  "./icons/icon-192.png",
-  "./icons/icon-512.png",
-  "./icons/icon-1024.png",
-  "./icons/icon-512-maskable.png",
-  "./icons/apple-touch-icon.png",
-  "./tiles/portrait/back.png",
-  "./tiles/portrait/0m.png",
-  "./tiles/portrait/0p.png",
-  "./tiles/portrait/0s.png",
-  "./tiles/portrait/1m.png",
-  "./tiles/portrait/2m.png",
-  "./tiles/portrait/3m.png",
-  "./tiles/portrait/4m.png",
-  "./tiles/portrait/5m.png",
-  "./tiles/portrait/6m.png",
-  "./tiles/portrait/7m.png",
-  "./tiles/portrait/8m.png",
-  "./tiles/portrait/9m.png",
-  "./tiles/portrait/1s.png",
-  "./tiles/portrait/2s.png",
-  "./tiles/portrait/3s.png",
-  "./tiles/portrait/4s.png",
-  "./tiles/portrait/5s.png",
-  "./tiles/portrait/6s.png",
-  "./tiles/portrait/7s.png",
-  "./tiles/portrait/8s.png",
-  "./tiles/portrait/9s.png",
-  "./tiles/portrait/1p.png",
-  "./tiles/portrait/2p.png",
-  "./tiles/portrait/3p.png",
-  "./tiles/portrait/4p.png",
-  "./tiles/portrait/5p.png",
-  "./tiles/portrait/6p.png",
-  "./tiles/portrait/7p.png",
-  "./tiles/portrait/8p.png",
-  "./tiles/portrait/9p.png",
-  "./tiles/portrait/1z.png",
-  "./tiles/portrait/2z.png",
-  "./tiles/portrait/3z.png",
-  "./tiles/portrait/4z.png",
-  "./tiles/portrait/5z.png",
-  "./tiles/portrait/6z.png",
-  "./tiles/portrait/7z.png",
-  "./tiles/landscape/1m.png",
-  "./tiles/landscape/2m.png",
-  "./tiles/landscape/3m.png",
-  "./tiles/landscape/4m.png",
-  "./tiles/landscape/5m.png",
-  "./tiles/landscape/6m.png",
-  "./tiles/landscape/7m.png",
-  "./tiles/landscape/8m.png",
-  "./tiles/landscape/9m.png",
-  "./tiles/landscape/1s.png",
-  "./tiles/landscape/2s.png",
-  "./tiles/landscape/3s.png",
-  "./tiles/landscape/4s.png",
-  "./tiles/landscape/5s.png",
-  "./tiles/landscape/6s.png",
-  "./tiles/landscape/7s.png",
-  "./tiles/landscape/8s.png",
-  "./tiles/landscape/9s.png",
-  "./tiles/landscape/1p.png",
-  "./tiles/landscape/2p.png",
-  "./tiles/landscape/3p.png",
-  "./tiles/landscape/4p.png",
-  "./tiles/landscape/5p.png",
-  "./tiles/landscape/6p.png",
-  "./tiles/landscape/7p.png",
-  "./tiles/landscape/8p.png",
-  "./tiles/landscape/9p.png",
-  "./tiles/landscape/1z.png",
-  "./tiles/landscape/2z.png",
-  "./tiles/landscape/3z.png",
-  "./tiles/landscape/4z.png",
-  "./tiles/landscape/5z.png",
-  "./tiles/landscape/6z.png",
-  "./tiles/landscape/7z.png",
+  "./style.css",
+  "./config.js",
+  "./exercises.js",
+  "./tips.js",
+  "./praises.js",
+  "./mascot.js",
+  "./models.js",
+  "./storage.js",
+  "./gameBalance.js",
+  "./cardioCalculator.js",
+  "./strengthCalculator.js",
+  "./enduranceCalculator.js",
+  "./decayCalculator.js",
+  "./habitCalculator.js",
+  "./bptCalculator.js",
+  "./seasonManager.js",
+  "./format.js",
+  "./icons.js",
+  "./chart.js",
+  "./picker.js",
+  "./confirm.js",
+  "./home.js",
+  "./bptInfo.js",
+  "./pressureInfo.js",
+  "./habitInfo.js",
+  "./assetRankInfo.js",
+  "./record.js",
+  "./exercisePicker.js",
+  "./template.js",
+  "./result.js",
+  "./levelUpView.js",
+  "./edit.js",
+  "./asset.js",
+  "./seasons.js",
+  "./science.js",
+  "./gameBalanceSettings.js",
+  "./more.js",
+  "./router.js",
+  "./app.js",
+  "./icon-192.png",
+  "./icon-512.png",
+  "./icon-512-maskable.png",
+  "./rank-bronze.png",
+  "./rank-bg-genkan.jpg",
+  "./rank-bg-station.jpg",
+  "./rank-bg-shoutengai.jpg",
+  "./rank-bg-village.jpg",
+  "./rank-bg-city.jpg",
+  "./rank-bg-pref-hokkaido.jpg",
+  "./rank-bg-pref-saitama.jpg",
+  "./rank-bg-pref-yamanashi.jpg",
+  "./rank-bg-pref-shiga.jpg",
+  "./rank-bg-pref-nara.jpg",
+  "./rank-bg-pref-tottori.jpg",
+  "./rank-bg-pref-tochigi.jpg",
+  "./rank-bg-pref-tokushima.jpg",
+  "./rank-bg-pref-gunma.jpg",
+  "./rank-bg-pref-ibaraki.jpg",
+  "./rank-bg-pref-saga.jpg",
+  "./rank-bg-pref-osaka.jpg",
+  "./rank-bg-pref-toyama.jpg",
+  "./rank-bg-pref-akita.jpg",
+  "./rank-bg-pref-miyazaki.jpg",
+  "./rank-bg-pref-fukui.jpg",
+  "./rank-bg-pref-chiba.jpg",
+  "./rank-bg-pref-kanagawa.jpg",
+  "./rank-bg-pref-yamagata.jpg",
+  "./rank-bg-pref-kagawa.jpg",
+  "./rank-bg-pref-ishikawa.jpg",
+  "./rank-bg-pref-gifu.jpg",
+  "./rank-bg-pref-kyoto.jpg",
+  "./rank-bg-pref-fukushima.jpg",
+  "./rank-bg-pref-nagano.jpg",
+  "./rank-bg-pref-aomori.jpg",
+  "./rank-bg-pref-wakayama.jpg",
+  "./rank-bg-pref-aichi.jpg",
+  "./rank-bg-pref-okayama.jpg",
+  "./rank-bg-pref-fukuoka.jpg",
+  "./rank-bg-pref-kochi.jpg",
+  "./rank-bg-pref-hyogo.jpg",
+  "./rank-bg-pref-niigata.jpg",
+  "./rank-bg-pref-miyagi.jpg",
+  "./rank-bg-pref-tokyo.jpg",
+  "./rank-bg-pref-iwate.jpg",
+  "./rank-bg-pref-oita.jpg",
+  "./rank-bg-pref-shimane.jpg",
+  "./rank-bg-pref-kumamoto.jpg",
+  "./rank-bg-pref-hiroshima.jpg",
+  "./rank-bg-pref-mie.jpg",
+  "./rank-bg-pref-yamaguchi.jpg",
+  "./rank-bg-pref-ehime.jpg",
+  "./rank-bg-pref-okinawa.jpg",
+  "./rank-bg-pref-kagoshima.jpg",
+  "./rank-bg-pref-nagasaki.jpg",
+  "./rank-bg-pref-shizuoka.jpg",
+  "./rank-bg-japan.jpg",
+  "./rank-bg-america.jpg",
+  "./rank-bg-earth.jpg",
+  "./rank-bg-mercury.jpg",
+  "./rank-bg-venus.jpg",
+  "./rank-bg-saturn.jpg",
+  "./rank-silver.png",
+  "./rank-gold.png",
+  "./rank-platinum.png",
+  "./rank-legend.png",
+  "./rank-god.png",
+  "./mascot-normal.png",
+  "./mascot-joy.png",
+  "./mascot-motivated.png",
+  "./mascot-tehepero.png",
+  "./mascot-body-jump.png",
+  "./mascot-body-guts.png",
+  "./mascot-run-01.png",
+  "./mascot-run-02.png",
+  "./mascot-run-07.png",
+  "./mascot-run-08.png",
 ];
 
-/* HTML・ナビゲーション要求かどうかを判定する */
-function isHtmlRequest(request) {
-  if (request.mode === "navigate") return true;
-  const accept = request.headers.get("accept") || "";
-  return accept.includes("text/html");
-}
-
-/* インストール時：アプリシェルを事前キャッシュする */
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_VERSION).then((cache) => cache.addAll(CORE_ASSETS))
   );
+  self.skipWaiting();
 });
 
-/* 有効化時：古いバージョンのキャッシュを削除する */
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key.startsWith("mahjong-app-") && key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
-      )
-    ).then(() => self.clients.claim())
+      Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+    )
   );
+  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
-  const request = event.request;
+  if (event.request.method !== "GET") return;
 
-  // 同一オリジン以外（他サイトへのリクエスト等）は素通しする
-  if (new URL(request.url).origin !== self.location.origin) return;
-  if (request.method !== "GET") return;
+  const url = new URL(event.request.url);
+  const isSameOrigin = url.origin === self.location.origin;
 
-  // HTML・ナビゲーション要求：Network First
-  // オンライン時は常に最新のindex.htmlを取得し、キャッシュも更新する。
-  // オフライン時（fetch失敗時）のみキャッシュから返し、SPAとして起動できるようにする。
-  if (isHtmlRequest(request)) {
+  if (!isSameOrigin) {
+    // 外部リソース: ネットワーク優先、失敗時はキャッシュ
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
+      fetch(event.request)
+        .then((res) => {
+          const resClone = res.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, resClone));
+          return res;
         })
-        .catch(() =>
-          caches.match(request).then((cached) => cached || caches.match("./index.html"))
-        )
+        .catch(() => caches.match(event.request))
     );
     return;
   }
 
-  // それ以外の静的ファイル（アイコン・manifest等）：Cache First
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
+  const isImage = /\.(png|jpg|jpeg|svg|gif|webp)$/i.test(url.pathname);
 
-      return fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          }
-          return response;
+  if (isImage) {
+    // 画像: 更新頻度が低いためキャッシュ優先（オフライン性・速度を重視）
+    event.respondWith(
+      caches.match(event.request).then((cached) => {
+        return cached || fetch(event.request).then((res) => {
+          const resClone = res.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, resClone));
+          return res;
+        }).catch(() => cached);
+      })
+    );
+  } else {
+    // アプリ本体（HTML/JS/CSS/JSON）: ネットワーク優先で常に最新を取得し、
+    // オフライン時のみキャッシュへフォールバックする（更新が反映されない問題を防ぐ）
+    event.respondWith(
+      fetch(event.request)
+        .then((res) => {
+          const resClone = res.clone();
+          caches.open(CACHE_VERSION).then((cache) => cache.put(event.request, resClone));
+          return res;
         })
-        .catch(() => undefined);
-    })
-  );
+        .catch(() => caches.match(event.request))
+    );
+  }
 });
