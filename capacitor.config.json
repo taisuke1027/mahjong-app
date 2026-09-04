@@ -1,0 +1,12 @@
+{
+  "appId": "com.yourcompany.mahjongscore",
+  "appName": "麻雀成績管理",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "ios": {
+    "contentInset": "always"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

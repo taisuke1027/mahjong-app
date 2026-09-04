@@ -1,0 +1,69 @@
+workflows:
+  ios-capacitor-workflow:
+    name: iOS Capacitor Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      groups:
+        # Codemagicの管理画面 > Teams > Group variables で
+        # 「app_store_credentials」という名前のグループを作成し、
+        # 以下の変数をそこに登録してください（コードに直接書かないため）
+        - app_store_credentials
+      vars:
+        BUNDLE_ID: "com.yourcompany.mahjongscore" # capacitor.config.jsonのappIdと合わせる
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+      node: 20
+      xcode: latest
+      cocoapods: default
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+
+    scripts:
+      - name: Install npm dependencies
+        script: npm install
+
+      - name: Install Capacitor iOS platform（初回のみ必要。2回目以降はスキップ可）
+        script: |
+          npm install @capacitor/core @capacitor/cli @capacitor/ios
+          npx cap sync ios
+
+      - name: CocoaPods install
+        script: |
+          cd ios/App && pod install
+
+      - name: Set up code signing (App Store Connect API keyを使った自動署名)
+        script: |
+          xcode-project use-profiles
+
+      - name: Flutter/Capacitor build number bump（任意）
+        script: |
+          cd ios/App
+          agvtool new-version -all $BUILD_NUMBER
+
+      - name: Build .ipa
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      email:
+        recipients:
+          - your-email@example.com # 通知を受け取りたいメールアドレスに書き換えてください
+        notify:
+          success: true
+          failure: true
+      app_store_connect:
+        auth: integration # App Store Connect API keyをCodemagic上で連携した名前
+        submit_to_testflight: true
+        submit_to_app_store: false # 最初はTestFlightまでに留め、確認後にtrueへ
